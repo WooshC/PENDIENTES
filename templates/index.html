@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Pendientes</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Mis Pendientes</h1>
+            <a href="{{ url_for('add') }}" class="btn btn-primary">
+                + Nuevo Pendiente
+            </a>
+        </header>
+
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for message in messages %}
+            <div class="alert">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <div class="table-container glass-panel">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Actividad / Revisión</th>
+                        <th>Descripción</th>
+                        <th>Empresa</th>
+                        <th>Estado</th>
+                        <th>Obs.</th>
+                        <th>Límite</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in pendientes %}
+                    <tr
+                        class="{{ 'urgent' if item.fecha_limite and item.fecha_limite <= today and item.estado != 'Completado' else '' }}">
+                        <td>{{ item.fecha }}</td>
+                        <td>{{ item.actividad }}</td>
+                        <td>{{ item.descripcion }}</td>
+                        <td>{{ item.empresa }}</td>
+                        <td>
+                            <span class="status-badge {{ item.estado|lower }}">
+                                {{ item.estado }}
+                            </span>
+                        </td>
+                        <td>{{ item.observaciones }}</td>
+                        <td>{{ item.fecha_limite }}</td>
+                        <td class="actions">
+                            <a href="{{ url_for('edit', id=item.id) }}" title="Editar">✏️</a>
+                            <form action="{{ url_for('notify_manual', id=item.id) }}" method="POST"
+                                style="display:inline;">
+                                <button type="submit" class="btn-icon" title="Enviar Notificación Ahora">🔔</button>
+                            </form>
+                            <form action="{{ url_for('delete', id=item.id) }}" method="POST" style="display:inline;"
+                                onsubmit="return confirm('¿Seguro que deseas eliminar esto?');">
+                                <button type="submit" class="btn-icon" title="Eliminar">🗑️</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+
+</html>

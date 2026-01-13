@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ action }} Pendiente</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container form-page">
+        <div class="glass-panel form-panel">
+            <h2>{{ action }} Pendiente</h2>
+            <form method="POST">
+                <div class="form-group">
+                    <label>Fecha de Creación</label>
+                    <input type="date" name="fecha" value="{{ pendiente.fecha if pendiente else '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Actividad / Revisión</label>
+                    <input type="text" name="actividad" value="{{ pendiente.actividad if pendiente else '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <textarea name="descripcion" rows="3">{{ pendiente.descripcion if pendiente else '' }}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Empresa</label>
+                    <input type="text" name="empresa" value="{{ pendiente.empresa if pendiente else '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label>Estado</label>
+                    <select name="estado">
+                        <option value="Pendiente" {{ 'selected' if pendiente and pendiente.estado=='Pendiente' else ''
+                            }}>Pendiente</option>
+                        <option value="En Proceso" {{ 'selected' if pendiente and pendiente.estado=='En Proceso' else ''
+                            }}>En Proceso</option>
+                        <option value="Completado" {{ 'selected' if pendiente and pendiente.estado=='Completado' else ''
+                            }}>Completado</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Observaciones</label>
+                    <textarea name="observaciones"
+                        rows="2">{{ pendiente.observaciones if pendiente else '' }}</textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Fecha Límite (Deadline)</label>
+                        <input type="date" name="fecha_limite"
+                            value="{{ pendiente.fecha_limite if pendiente else '' }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email Notificación</label>
+                        <input type="email" name="email_notificacion"
+                            value="{{ pendiente.email_notificacion if pendiente else '' }}"
+                            placeholder="ejemplo@correo.com">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancelar</a>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+
+</html>
