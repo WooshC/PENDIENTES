@@ -1,4 +1,4 @@
-# 📋 TaskFlow Pro v2.0
+# 📋 TaskFlow Pro v2.1.0
 
 **Sistema de Gestión Inteligente de Tareas y Clientes**
 
@@ -494,7 +494,7 @@ WHERE fecha IS NULL;
 
 ---
 
-## 📈 Roadmap v2.1 (Próximamente)
+## 📈 Roadmap v2.2 (Próximamente)
 
 - [ ] Sistema de notas de soluciones técnicas
 - [ ] Integración con IA (DeepSeek/Ollama local)
@@ -544,9 +544,8 @@ Este proyecto es de uso interno. Todos los derechos reservados.
 
 ## 👨‍💻 Autor
 
-**Tu Nombre/Empresa**
-- Email: tu-email@ejemplo.com
-- GitHub: [@tu-usuario](https://github.com/tu-usuario)
+**Woosh_C/Moisés**
+- Email: moisesisraelarequipam@gmail.com
 
 ---
 
