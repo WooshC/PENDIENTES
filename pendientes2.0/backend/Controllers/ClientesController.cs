@@ -79,6 +79,26 @@ public class ClientesController : ControllerBase
         return CreatedAtAction(nameof(GetClientes), new { id = cliente.Id }, new { message = "Cliente agregado" });
     }
 
+    [HttpPost("bulk")]
+    public async Task<IActionResult> ImportClientes([FromBody] List<Cliente> clientes)
+    {
+        if (clientes == null || !clientes.Any())
+            return BadRequest("Iserta una lista válida de clientes.");
+
+        // Optional: Filter out invalid entries or potential duplicates if needed
+        // For now, we assume raw insert. 
+        // We ensure ID is 0 so DB auto-generates it
+        foreach(var c in clientes)
+        {
+            c.Id = 0; 
+            if(string.IsNullOrEmpty(c.Estado)) c.Estado = "Pendiente";
+        }
+
+        _context.Clientes.AddRange(clientes);
+        await _context.SaveChangesAsync();
+        return Ok(new { message = $"{clientes.Count} clientes importados correctamente", count = clientes.Count });
+    }
+
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateCliente(int id, Cliente cliente)
     {

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { getClientes, addCliente, updateCliente, deleteCliente, getClientTasks, addClientTask, updateTaskStatus, deleteTask, createPendingTasks, addGlobalTask } from '../api';
-import { Plus, Search, Trash2, Edit2, ChevronDown, CheckSquare, Square, FileSpreadsheet, Layers, Filter, X, Send, UserX, Check } from 'lucide-react';
+import { getClientes, addCliente, updateCliente, deleteCliente, getClientTasks, addClientTask, updateTaskStatus, deleteTask, createPendingTasks, addGlobalTask, importClientesBulk } from '../api';
+import { Plus, Search, Trash2, Edit2, ChevronDown, CheckSquare, Square, FileSpreadsheet, Layers, Filter, X, Send, UserX, Check, Download, Upload, FileDown } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'sonner';
+import { Toaster, toast } from 'sonner';
 
 const ClientsPage = () => {
     const [clientes, setClientes] = useState([]);
@@ -119,6 +120,78 @@ const ClientsPage = () => {
         setExcludedClients(newSet);
     };
 
+    const handleExportExcel = () => {
+        const dataToExport = clientes.map(c => ({
+            ID: c.id,
+            Empresa: c.empresa,
+            Estado: c.estado,
+            Procedimiento: c.procedimiento,
+            Observaciones: c.observaciones,
+            Tareas: (c.tasks || []).join('\n')
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Clientes");
+        XLSX.writeFile(wb, "Clientes_Export.xlsx");
+    };
+
+    const handleDownloadTemplate = () => {
+        const ws = XLSX.utils.json_to_sheet([
+            { Empresa: "Empresa Ejemplo", Estado: "Pendiente", Procedimiento: "Revisar facturas", Observaciones: "Observación opcional" },
+            { Empresa: "Otra Empresa", Estado: "En Curso", Procedimiento: "", Observaciones: "" }
+        ]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Plantilla");
+        XLSX.writeFile(wb, "Plantilla_Clientes.xlsx");
+    };
+
+    const handleImportExcel = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            try {
+                const bstr = evt.target.result;
+                const wb = XLSX.read(bstr, { type: 'binary' });
+                const wsname = wb.SheetNames[0];
+                const ws = wb.Sheets[wsname];
+                const data = XLSX.utils.sheet_to_json(ws);
+
+                if (!data || data.length === 0) {
+                    toast.error("El archivo está vacío");
+                    return;
+                }
+
+                // Map columns loosely
+                const validClients = data.map(row => ({
+                    empresa: row.Empresa || row.empresa,
+                    estado: row.Estado || row.estado || 'Pendiente',
+                    procedimiento: row.Procedimiento || row.procedimiento || '',
+                    observaciones: row.Observaciones || row.observaciones || '',
+                    check_estado: false
+                })).filter(c => c.empresa); // Filter out empty rows
+
+                if (validClients.length === 0) {
+                    toast.error("No se encontraron clientes válidos en el archivo");
+                    return;
+                }
+
+                const toastId = toast.loading(`Importando ${validClients.length} clientes...`);
+                await importClientesBulk(validClients);
+                toast.success("Clientes importados correctamente", { id: toastId });
+                fetchClientes();
+            } catch (error) {
+                console.error(error);
+                toast.error("Error al importar el archivo");
+            }
+        };
+        reader.readAsBinaryString(file);
+        // Reset input
+        e.target.value = '';
+    };
+
     const filtered = clientes.filter(c => {
         const matchesSearch = c.empresa.toLowerCase().includes(searchTerm.toLowerCase());
         const status = getClientStatus(c);
@@ -128,6 +201,7 @@ const ClientsPage = () => {
 
     return (
         <div className="space-y-6 max-w-[1400px] mx-auto">
+            <Toaster position="top-center" richColors closeButton />
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-end gap-4">
                 <div>
@@ -135,10 +209,7 @@ const ClientsPage = () => {
                     <p className="text-slate-400 mt-1 text-sm">Gestiona tus empresas contratadas y sus mantenimientos.</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button className="flex items-center gap-2 px-4 py-2 bg-emerald-500 font-bold text-white rounded-xl shadow-lg shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all text-sm">
-                        <FileSpreadsheet size={18} />
-                        Excel
-                    </button>
+
                     <button
                         onClick={() => setGlobalTaskModalOpen(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-indigo-500 font-bold text-white rounded-xl shadow-lg shadow-indigo-500/20 hover:brightness-110 active:scale-95 transition-all text-sm"
@@ -146,13 +217,30 @@ const ClientsPage = () => {
                         <Layers size={18} />
                         Tarea Global
                     </button>
-                    <button
-                        onClick={() => { setEditingClient(null); setClientFormData({ empresa: '', observaciones: '', procedimiento: '', check_estado: false, estado: 'Pendiente' }); setClientModalOpen(true); }}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 font-bold text-white rounded-xl shadow-lg shadow-blue-500/20 hover:brightness-110 active:scale-95 transition-all text-sm"
-                    >
-                        <Plus size={18} />
-                        Nuevo Cliente
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button onClick={handleExportExcel} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors border border-slate-200 bg-white shadow-sm" title="Exportar Clientes">
+                            <Download size={20} />
+                        </button>
+                        <div className="relative">
+                            <input type="file" id="importExcel" className="hidden" accept=".xlsx,.xls" onChange={handleImportExcel} />
+                            <label htmlFor="importExcel" className="flex items-center justify-center p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors border border-slate-200 bg-white shadow-sm cursor-pointer" title="Importar Clientes">
+                                <Upload size={20} />
+                            </label>
+                        </div>
+                        <button onClick={handleDownloadTemplate} className="p-2 text-slate-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors border border-slate-200 bg-white shadow-sm" title="Descargar Plantilla">
+                            <FileSpreadsheet size={20} />
+                        </button>
+
+                        <div className="h-6 w-px bg-slate-200 mx-1"></div>
+
+                        <button
+                            onClick={() => { setEditingClient(null); setClientFormData({ empresa: '', observaciones: '', procedimiento: '', check_estado: false, estado: 'Pendiente' }); setClientModalOpen(true); }}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 font-bold text-white rounded-xl shadow-lg shadow-blue-500/20 hover:brightness-110 active:scale-95 transition-all text-sm"
+                        >
+                            <Plus size={18} />
+                            Nuevo Cliente
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -456,7 +544,7 @@ const ClientRow = ({ client, displayStatus, isExpanded, onExpand, onEdit, onDele
                     {client.tasks && client.tasks.length > 0 ? (
                         <ul className="list-disc pl-4 space-y-1">
                             {client.tasks.slice(0, 2).map((task, i) => (
-                                <li key={i} className="truncate text-xs font-medium text-slate-700">{task}</li>
+                                <li key={i} className="truncate text-xs font-medium text-slate-500">{task}</li>
                             ))}
                             {client.tasks.length > 2 && (
                                 <li className="text-[10px] text-slate-400 font-bold pl-1">+ {client.tasks.length - 2} más...</li>

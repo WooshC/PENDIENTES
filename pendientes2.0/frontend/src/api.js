@@ -23,6 +23,7 @@ export const getClientes = () => api.get('/clientes');
 export const addCliente = (data) => api.post('/clientes', data);
 export const updateCliente = (id, data) => api.put(`/clientes/${id}`, data);
 export const deleteCliente = (id) => api.delete(`/clientes/${id}`);
+export const importClientesBulk = (clientes) => api.post('/clientes/bulk', clientes);
 
 // Client Tasks
 export const getClientTasks = (clientId) => api.get(`/clients/${clientId}/tasks`);

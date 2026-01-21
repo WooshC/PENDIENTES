@@ -62,25 +62,25 @@ const PendingPage = () => {
     };
 
     const handleDelete = (id) => {
-        toast("¿Eliminar este mensaje?", {
-            description: "Esta acción no se puede deshacer",
-            action: {
-                label: 'Eliminar',
-                onClick: async () => {
-                    try {
-                        await deletePendiente(id);
-                        toast.success('Mensaje eliminado');
-                        fetchPendientes();
-                    } catch (error) {
-                        toast.error('Error al eliminar');
-                    }
-                }
-            },
-            cancel: {
-                label: 'Cancelar',
-            },
-            duration: 5000,
-        });
+        toast.custom((t) => (
+            <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-6 shadow-2xl w-[350px]">
+                <h3 className="font-bold text-white mb-2">¿Eliminar Mensaje?</h3>
+                <p className="text-slate-400 text-sm mb-4">Esta acción eliminará este pendiente permanentemente.</p>
+                <div className="flex justify-end gap-2">
+                    <button onClick={() => toast.dismiss(t)} className="px-3 py-1.5 text-sm text-slate-400 hover:text-white">Cancelar</button>
+                    <button onClick={async () => {
+                        toast.dismiss(t);
+                        try {
+                            await deletePendiente(id);
+                            toast.success('Mensaje eliminado');
+                            fetchPendientes();
+                        } catch (error) {
+                            toast.error('Error al eliminar');
+                        }
+                    }} className="px-3 py-1.5 text-sm bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-lg transition-colors">Confirmar</button>
+                </div>
+            </div>
+        ));
     };
 
     const handleNotify = (item) => {
