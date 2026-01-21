@@ -187,21 +187,22 @@ const PendingPage = () => {
     );
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 pb-24 md:pb-0">
             <Toaster position="top-center" theme="dark" richColors />
 
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                        <MessageSquare className="text-blue-500" size={32} />
-                        Centro de Mensajería
+                    <h1 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-2 md:gap-3">
+                        <MessageSquare className="text-blue-500" size={28} />
+                        <span className="hidden sm:inline">Centro de Mensajería</span>
+                        <span className="sm:hidden">Mensajes</span>
                     </h1>
-                    <p className="text-slate-400 mt-1 ml-11">Gestión de alertas y recordatorios</p>
+                    <p className="text-slate-400 mt-1 text-xs md:text-sm ml-0 sm:ml-11">Gestión de alertas y recordatorios</p>
                 </div>
                 <button
                     onClick={() => openModal()}
-                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-lg shadow-blue-500/25 transition-all active:scale-95 font-medium"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-lg shadow-blue-500/25 transition-all active:scale-95 font-medium text-sm md:text-base"
                 >
                     <Plus size={20} />
                     Nuevo Mensaje
@@ -209,12 +210,12 @@ const PendingPage = () => {
             </div>
 
             {/* Filter Bar */}
-            <div className="bg-slate-800/50 backdrop-blur-sm p-4 rounded-2xl border border-slate-700/50 flex items-center gap-3 shadow-inner">
-                <Search className="text-slate-500" size={20} />
+            <div className="bg-slate-800/50 backdrop-blur-sm p-3 md:p-4 rounded-2xl border border-slate-700/50 flex items-center gap-3 shadow-inner">
+                <Search className="text-slate-500 flex-shrink-0" size={20} />
                 <input
                     type="text"
                     placeholder="Buscar en mensajes..."
-                    className="bg-transparent border-none outline-none text-slate-200 placeholder-slate-500 w-full"
+                    className="bg-transparent border-none outline-none text-slate-200 placeholder-slate-500 w-full text-sm md:text-base"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -228,28 +229,28 @@ const PendingPage = () => {
                     <p className="text-center py-10 text-slate-500">No hay mensajes pendientes.</p>
                 ) : (
                     filteredPendientes.map((item) => (
-                        <div key={item.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all shadow-sm hover:shadow-md group relative">
-                            <div className="flex flex-col md:flex-row gap-4 justify-between">
+                        <div key={item.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-5 hover:border-slate-700 transition-all shadow-sm hover:shadow-md group relative">
+                            <div className="flex flex-col gap-4">
                                 {/* Left Content */}
                                 <div className="flex-1 space-y-2">
-                                    <div className="flex items-center gap-3 mb-1">
-                                        <h3 className="text-lg font-semibold text-white">{item.actividad}</h3>
+                                    <div className="flex items-center gap-2 md:gap-3 mb-1 flex-wrap">
+                                        <h3 className="text-base md:text-lg font-semibold text-white">{item.actividad}</h3>
                                         <span className={`text-xs px-2 py-0.5 rounded-full border ${item.estado === 'Completado' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
                                             item.estado === 'En Curso' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
                                                 'bg-blue-500/10 text-blue-400 border-blue-500/20'
                                             }`}>{item.estado}</span>
                                     </div>
 
-                                    <div className="flex flex-wrap gap-4 text-sm text-slate-400">
+                                    <div className="flex flex-wrap gap-3 md:gap-4 text-xs md:text-sm text-slate-400">
                                         {item.empresa && (
                                             <div className="flex items-center gap-1.5">
-                                                <Building2 size={16} />
-                                                <span>{item.empresa}</span>
+                                                <Building2 size={16} className="flex-shrink-0" />
+                                                <span className="truncate">{item.empresa}</span>
                                             </div>
                                         )}
                                         {item.fechaLimite && (
                                             <div className={`flex items-center gap-1.5 ${new Date(item.fechaLimite) < new Date() ? 'text-red-400 font-medium' : ''}`}>
-                                                <Clock size={16} />
+                                                <Clock size={16} className="flex-shrink-0" />
                                                 <span>Vence: {item.fechaLimite}</span>
                                             </div>
                                         )}
@@ -263,25 +264,25 @@ const PendingPage = () => {
                                 </div>
 
                                 {/* Right Actions */}
-                                <div className="flex items-center gap-3 md:border-l md:border-slate-800 md:pl-6">
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:border-t-0 border-t border-slate-800 pt-3 sm:pt-0">
                                     {/* Check both cases for email property to support legacy/new backend responses */}
                                     {(item.email_notificacion || item.emailNotificacion) ? (
-                                        <div className="flex flex-col items-center gap-1">
+                                        <div className="flex flex-col gap-2 flex-1">
                                             <button
                                                 onClick={() => handleNotify(item)}
-                                                className="flex items-center gap-2 px-4 py-2 bg-emerald-600/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-600 hover:text-white rounded-xl transition-all"
+                                                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-600 hover:text-white rounded-xl transition-all text-sm font-medium"
                                                 title={`Enviar correo a ${item.email_notificacion || item.emailNotificacion}`}
                                             >
                                                 <Send size={18} />
-                                                <span className="font-medium">Enviar Ahora</span>
+                                                <span>Enviar Ahora</span>
                                             </button>
-                                            <span className="text-[10px] text-slate-600 max-w-[120px] truncate">{item.email_notificacion || item.emailNotificacion}</span>
+                                            <span className="text-[10px] text-slate-600 truncate text-center sm:text-left">{item.email_notificacion || item.emailNotificacion}</span>
                                         </div>
                                     ) : (
-                                        <span className="text-xs text-slate-600 italic px-2">Sin correo</span>
+                                        <span className="text-xs text-slate-600 italic px-2 text-center sm:text-left">Sin correo</span>
                                     )}
 
-                                    <div className="flex gap-1 ml-2">
+                                    <div className="flex gap-2 justify-center sm:justify-start">
                                         <button onClick={() => openModal(item)} className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"><Edit2 size={18} /></button>
                                         <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"><Trash2 size={18} /></button>
                                     </div>

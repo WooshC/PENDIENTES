@@ -4,7 +4,7 @@ import { LayoutDashboard, Users, Bell, CheckCircle2 } from 'lucide-react';
 
 const Layout = ({ children }) => {
     return (
-        <div className="min-h-screen bg-[#0f172a] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))] text-slate-100 flex font-sans selection:bg-blue-500/30">
+        <div className="min-h-screen bg-[#0f172a] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))] text-slate-100 flex font-sans selection:bg-blue-500/30 pb-20 md:pb-0">
             {/* Sidebar */}
             <aside className="w-64 bg-slate-950 border-r border-slate-800 flex-shrink-0 fixed h-full z-10 hidden md:flex flex-col transition-all duration-300">
                 <div className="p-6 border-b border-slate-800 flex items-center gap-3">
@@ -19,7 +19,6 @@ const Layout = ({ children }) => {
                 <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
                     <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Pendientes" />
                     <NavItem to="/clientes" icon={<Users size={20} />} label="Clientes" />
-                    {/* <NavItem to="/notifications" icon={<Bell size={20} />} label="Notificaciones" /> */}
                 </nav>
 
                 <div className="p-4 border-t border-slate-800 text-xs text-slate-500 text-center">
@@ -27,7 +26,11 @@ const Layout = ({ children }) => {
                 </div>
             </aside>
 
-            {/* Mobile Navbar Placeholder (Optional) */}
+            {/* Mobile Bottom Nav */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-950/90 backdrop-blur-md border-t border-slate-800 z-50 flex justify-around items-center p-3 pb-safe">
+                <MobileNavItem to="/" icon={<LayoutDashboard size={24} />} label="Pendientes" />
+                <MobileNavItem to="/clientes" icon={<Users size={24} />} label="Clientes" />
+            </div>
 
             {/* Main Content */}
             <main className="flex-1 md:ml-64 p-4 md:p-8 overflow-y-auto w-full">
@@ -51,6 +54,21 @@ const NavItem = ({ to, icon, label }) => (
     >
         <span className="group-hover:scale-110 transition-transform duration-200">{icon}</span>
         <span className="font-medium">{label}</span>
+    </NavLink>
+);
+
+const MobileNavItem = ({ to, icon, label }) => (
+    <NavLink
+        to={to}
+        className={({ isActive }) =>
+            `flex flex-col items-center justify-center gap-1 p-2 rounded-xl transition-all duration-200 ${isActive
+                ? 'text-blue-400'
+                : 'text-slate-500'
+            }`
+        }
+    >
+        <span className={({ isActive }) => isActive ? 'scale-110' : ''}>{icon}</span>
+        <span className="text-[10px] font-medium">{label}</span>
     </NavLink>
 );
 

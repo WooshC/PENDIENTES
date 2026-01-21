@@ -16,10 +16,13 @@ const ClientsPage = () => {
     // Modals
     const [clientModalOpen, setClientModalOpen] = useState(false);
     const [globalTaskModalOpen, setGlobalTaskModalOpen] = useState(false);
+    const [convertModalOpen, setConvertModalOpen] = useState(false);
 
     // Forms
     const [editingClient, setEditingClient] = useState(null);
     const [clientFormData, setClientFormData] = useState({ empresa: '', observaciones: '', procedimiento: '', check_estado: false, estado: 'Pendiente' });
+    const [convertData, setConvertData] = useState({ email: '', dias: 3, fecha: '' });
+    const [clientToConvert, setClientToConvert] = useState(null);
 
     // Global Task Form
     const [globalTaskDesc, setGlobalTaskDesc] = useState('');
@@ -113,6 +116,45 @@ const ClientsPage = () => {
         }
     };
 
+    const handleConvertToPending = async () => {
+        if (!clientToConvert) return;
+        if (!convertData.email || !convertData.email.includes('@')) {
+            return toast.error("Ingresa un email válido");
+        }
+
+        const dias = parseInt(convertData.dias);
+        if (isNaN(dias) || dias < 0) {
+            return toast.error("Días de antelación inválido");
+        }
+
+        const toastId = toast.loading("Generando pendientes...");
+        try {
+            const payload = {
+                email: convertData.email,
+                dias_antes_notificacion: dias,
+                fecha_limite: convertData.fecha || null
+            };
+
+            const res = await createPendingTasks(clientToConvert.id, payload);
+            toast.success(res.data.message || "Pendientes generados", { id: toastId });
+            setConvertModalOpen(false);
+            setClientToConvert(null);
+        } catch (error) {
+            console.error(error);
+            let msg = "Error generando tareas";
+            if (error.response?.data) {
+                if (error.response.data.error) {
+                    msg = error.response.data.error; // Custom error
+                } else if (error.response.data.errors) {
+                    // Validation errors
+                    const validationErrors = Object.values(error.response.data.errors).flat();
+                    msg = validationErrors.join(', ');
+                }
+            }
+            toast.error(msg, { id: toastId });
+        }
+    };
+
     const toggleExclusion = (id) => {
         const newSet = new Set(excludedClients);
         if (newSet.has(id)) newSet.delete(id);
@@ -200,24 +242,25 @@ const ClientsPage = () => {
     });
 
     return (
-        <div className="space-y-6 max-w-[1400px] mx-auto">
+        <div className="space-y-6 max-w-[1400px] mx-auto pb-24 md:pb-0">
             <Toaster position="top-center" richColors closeButton />
             {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-end gap-4">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white tracking-tight">Directorio de Clientes</h1>
-                    <p className="text-slate-400 mt-1 text-sm">Gestiona tus empresas contratadas y sus mantenimientos.</p>
+                    <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Directorio de Clientes</h1>
+                    <p className="text-slate-400 mt-1 text-xs md:text-sm">Gestiona tus empresas contratadas y sus mantenimientos.</p>
                 </div>
-                <div className="flex items-center gap-3">
 
+                <div className="w-full lg:w-auto grid grid-cols-2 sm:flex items-center gap-2 flex-wrap">
                     <button
                         onClick={() => setGlobalTaskModalOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-indigo-500 font-bold text-white rounded-xl shadow-lg shadow-indigo-500/20 hover:brightness-110 active:scale-95 transition-all text-sm"
+                        className="col-span-2 sm:col-span-1 flex justify-center items-center gap-2 px-4 py-2 bg-indigo-500 font-bold text-white rounded-xl shadow-lg shadow-indigo-500/20 hover:brightness-110 active:scale-95 transition-all text-xs md:text-sm"
                     >
                         <Layers size={18} />
                         Tarea Global
                     </button>
-                    <div className="flex items-center gap-2">
+
+                    <div className="col-span-2 sm:col-span-1 flex items-center gap-2 justify-end">
                         <button onClick={handleExportExcel} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors border border-slate-200 bg-white shadow-sm" title="Exportar Clientes">
                             <Download size={20} />
                         </button>
@@ -231,14 +274,15 @@ const ClientsPage = () => {
                             <FileSpreadsheet size={20} />
                         </button>
 
-                        <div className="h-6 w-px bg-slate-200 mx-1"></div>
+                        <div className="hidden sm:block h-6 w-px bg-slate-200 mx-1"></div>
 
                         <button
                             onClick={() => { setEditingClient(null); setClientFormData({ empresa: '', observaciones: '', procedimiento: '', check_estado: false, estado: 'Pendiente' }); setClientModalOpen(true); }}
                             className="flex items-center gap-2 px-4 py-2 bg-blue-600 font-bold text-white rounded-xl shadow-lg shadow-blue-500/20 hover:brightness-110 active:scale-95 transition-all text-sm"
                         >
                             <Plus size={18} />
-                            Nuevo Cliente
+                            <span className="hidden sm:inline">Nuevo Cliente</span>
+                            <span className="sm:hidden">Nuevo</span>
                         </button>
                     </div>
                 </div>
@@ -247,8 +291,8 @@ const ClientsPage = () => {
             {/* Main Card */}
             <div className="bg-white rounded-3xl shadow-xl overflow-hidden min-h-[600px] flex flex-col">
                 {/* Toolbar */}
-                <div className="p-4 border-b border-slate-100 flex items-center gap-4 bg-slate-50/50">
-                    <div className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2.5 flex items-center gap-3 shadow-sm focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row items-center gap-4 bg-slate-50/50">
+                    <div className="w-full sm:flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2.5 flex items-center gap-3 shadow-sm focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
                         <Search className="text-slate-400" size={18} />
                         <input
                             type="text"
@@ -258,13 +302,15 @@ const ClientsPage = () => {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <div className="relative">
+                    <div className="w-full sm:w-auto relative">
                         <button
                             onClick={() => setShowFilters(!showFilters)}
-                            className={`flex items-center gap-2 border rounded-xl px-4 py-2.5 shadow-sm transition-all ${showFilters || statusFilter !== 'Todos' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'}`}
+                            className={`w-full sm:w-auto flex items-center justify-between gap-2 border rounded-xl px-4 py-2.5 shadow-sm transition-all ${showFilters || statusFilter !== 'Todos' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'}`}
                         >
-                            <Filter size={16} />
-                            <span className="text-sm font-bold">{statusFilter}</span>
+                            <div className="flex items-center gap-2">
+                                <Filter size={16} />
+                                <span className="text-sm font-bold">{statusFilter}</span>
+                            </div>
                             <ChevronDown size={14} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
                         </button>
 
@@ -272,7 +318,7 @@ const ClientsPage = () => {
                             {showFilters && (
                                 <motion.div
                                     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                                    className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-20 overflow-hidden"
+                                    className="absolute right-0 top-full mt-2 w-full sm:w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-20 overflow-hidden"
                                 >
                                     {['Todos', 'Pendiente', 'Finalizado', 'En Curso', 'Sin Tareas'].map(status => (
                                         <button
@@ -290,8 +336,8 @@ const ClientsPage = () => {
                     </div>
                 </div>
 
-                {/* Table Header */}
-                <div className="grid grid-cols-12 px-6 py-4 bg-slate-50 border-b border-slate-100 gap-4">
+                {/* Table Header (Hidden on Mobile) */}
+                <div className="hidden md:grid grid-cols-12 px-6 py-4 bg-slate-50 border-b border-slate-100 gap-4">
                     <div className="col-span-4 text-xs font-bold text-blue-600 uppercase tracking-wider">Empresa</div>
                     <div className="col-span-2 text-xs font-bold text-blue-600 uppercase tracking-wider text-center">Estado</div>
                     <div className="col-span-2 text-xs font-bold text-blue-600 uppercase tracking-wider">Tareas</div>
@@ -320,7 +366,11 @@ const ClientsPage = () => {
                                         setClientModalOpen(true);
                                     }}
                                     onDelete={() => handleDeleteClient(client.id)}
-                                    onTasksChange={() => fetchClientes(true)}
+                                    onConvert={() => {
+                                        setClientToConvert(client);
+                                        setConvertModalOpen(true);
+                                    }}
+                                    onTasksUpdate={() => fetchClientes(true)}
                                 />
                             ))}
                         </div>
@@ -332,12 +382,12 @@ const ClientsPage = () => {
             <AnimatePresence>
                 {clientModalOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
                             <div className="bg-slate-50 p-5 border-b border-slate-100 flex justify-between items-center">
                                 <h2 className="text-lg font-bold text-slate-800">{editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}</h2>
                                 <button onClick={() => setClientModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
                             </div>
-                            <form onSubmit={handleClientSubmit} className="p-6 space-y-4">
+                            <form onSubmit={handleClientSubmit} className="p-6 space-y-4 overflow-y-auto">
                                 <div>
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Nombre Empresa</label>
                                     <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 font-medium" value={clientFormData.empresa} onChange={e => setClientFormData({ ...clientFormData, empresa: e.target.value })} required />
@@ -399,213 +449,32 @@ const ClientsPage = () => {
                                 </div>
 
                                 <div className="flex-1 overflow-hidden flex flex-col bg-slate-50 border border-slate-200 rounded-xl">
-                                    <div className="p-3 border-b border-slate-200 bg-slate-100/50 flex justify-between items-center">
-                                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Destinatarios ({clientes.length - excludedClients.size})</span>
-                                        <span className="text-xs text-slate-400">Clic para excluir</span>
+                                    <div className="p-3 border-b border-slate-200 bg-slate-100 text-xs font-bold text-slate-500 uppercase tracking-wider flex justify-between items-center">
+                                        <span>Seleccionar Destinatarios ({clientes.length - excludedClients.size} seleccionados)</span>
+                                        <span className="text-indigo-600 cursor-pointer hover:underline" onClick={() => setExcludedClients(new Set())}>Seleccionar Todos</span>
                                     </div>
-                                    <div className="overflow-y-auto p-2 grid grid-cols-2 gap-2">
-                                        {clientes.map(client => {
-                                            const isExcluded = excludedClients.has(client.id);
-                                            return (
-                                                <div
-                                                    key={client.id}
-                                                    onClick={() => toggleExclusion(client.id)}
-                                                    className={`p-3 rounded-lg border cursor-pointer transition-all flex items-center gap-3 ${isExcluded ? 'bg-slate-100 border-slate-200 opacity-60' : 'bg-white border-indigo-200 shadow-sm'}`}
-                                                >
-                                                    <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${isExcluded ? 'border-slate-400 text-transparent' : 'bg-indigo-500 border-indigo-500 text-white'}`}>
-                                                        <Check size={14} strokeWidth={3} />
-                                                    </div>
-                                                    <span className={`text-sm font-medium ${isExcluded ? 'text-slate-500 line-through' : 'text-slate-700'}`}>{client.empresa}</span>
+                                    <div className="flex-1 overflow-y-auto p-2">
+                                        {clientes.map(client => (
+                                            <div key={client.id} onClick={() => toggleExclusion(client.id)} className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${excludedClients.has(client.id) ? 'hover:bg-slate-100 opacity-50' : 'bg-white shadow-sm border border-indigo-100 ring-1 ring-indigo-500/10'}`}>
+                                                <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${excludedClients.has(client.id) ? 'border-slate-300 bg-slate-50' : 'bg-indigo-500 border-indigo-500'}`}>
+                                                    {!excludedClients.has(client.id) && <Check size={14} className="text-white" />}
                                                 </div>
-                                            );
-                                        })}
+                                                <span className={`text-sm font-medium ${excludedClients.has(client.id) ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{client.empresa}</span>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-                                <button onClick={() => setGlobalTaskModalOpen(false)} className="px-5 py-2.5 text-slate-500 font-medium hover:bg-slate-200 rounded-xl transition-colors">Cancelar</button>
-                                <button onClick={handleGlobalTaskSubmit} className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 active:scale-95 transition-all">
+                            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+                                <button onClick={() => setGlobalTaskModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-200 rounded-xl transition-colors">Cancelar</button>
+                                <button onClick={handleGlobalTaskSubmit} className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all flex items-center gap-2">
+                                    <Send size={18} />
                                     Asignar Tarea
                                 </button>
                             </div>
                         </motion.div>
                     </div>
-                )}
-            </AnimatePresence>
-        </div>
-    );
-};
-
-const ClientRow = ({ client, displayStatus, isExpanded, onExpand, onEdit, onDelete, onTasksChange }) => {
-    const [tasks, setTasks] = useState([]);
-    const [loadingTasks, setLoadingTasks] = useState(false);
-    const [newTaskDesc, setNewTaskDesc] = useState('');
-
-    // Creation to Pending logic
-    const [convertModalOpen, setConvertModalOpen] = useState(false);
-    const [convertData, setConvertData] = useState({ email: '', dias: 3, fecha: '' });
-
-    useEffect(() => {
-        if (isExpanded) loadTasks();
-    }, [isExpanded]);
-
-    const loadTasks = async () => {
-        setLoadingTasks(true);
-        try {
-            const res = await getClientTasks(client.id);
-            setTasks(res.data);
-        } catch (e) { console.error(e); }
-        finally { setLoadingTasks(false); }
-    };
-
-    const handleAddTask = async (e) => {
-        e.preventDefault();
-        if (!newTaskDesc.trim()) return;
-        await addClientTask(client.id, newTaskDesc);
-        setNewTaskDesc('');
-        loadTasks();
-        if (onTasksChange) onTasksChange();
-    };
-
-    const toggleTask = async (task) => {
-        const newStatus = !task.completed;
-        setTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed: newStatus } : t));
-        await updateTaskStatus(task.id, newStatus);
-        if (onTasksChange) onTasksChange();
-    };
-
-    const removeTask = async (id) => {
-        // Optimistic
-        setTasks(prev => prev.filter(t => t.id !== id));
-        await deleteTask(id);
-        if (onTasksChange) onTasksChange();
-    };
-
-    const handleConvertToPending = async (e) => {
-        e.preventDefault();
-
-        if (!convertData.email || !convertData.email.includes('@')) {
-            return toast.error("Ingresa un email válido");
-        }
-
-        const dias = parseInt(convertData.dias);
-        if (isNaN(dias) || dias < 0) {
-            return toast.error("Días de antelación inválido");
-        }
-
-        const toastId = toast.loading("Generando pendientes...");
-        try {
-            const payload = {
-                email: convertData.email,
-                dias_antes_notificacion: dias,
-                fecha_limite: convertData.fecha || null
-            };
-
-            const res = await createPendingTasks(client.id, payload);
-            toast.success(res.data.message || "Pendientes generados", { id: toastId });
-            setConvertModalOpen(false);
-        } catch (error) {
-            console.error(error);
-            let msg = "Error generando tareas";
-            if (error.response?.data) {
-                if (error.response.data.error) {
-                    msg = error.response.data.error; // Custom error
-                } else if (error.response.data.errors) {
-                    // Validation errors
-                    const validationErrors = Object.values(error.response.data.errors).flat();
-                    msg = validationErrors.join(', ');
-                }
-            }
-            toast.error(msg, { id: toastId });
-        }
-    };
-
-    return (
-        <div className="group bg-white hover:bg-slate-50 transition-colors">
-            {/* Row Content */}
-            <div className={`grid grid-cols-12 px-6 py-4 gap-4 items-center cursor-pointer ${isExpanded ? 'bg-blue-50/50' : ''}`} onClick={onExpand}>
-                <div className="col-span-4 font-bold text-slate-700 flex items-center gap-2">
-                    {isExpanded ? <ChevronDown size={18} className="text-blue-500" /> : <div className="w-[18px]" />}
-                    <span className="bg-blue-600/10 text-blue-700 px-2 py-0.5 rounded uppercase text-sm">{client.empresa}</span>
-                </div>
-
-                <div className="col-span-2 flex justify-center">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${displayStatus === 'Finalizado' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-                        displayStatus === 'En Curso' ? 'bg-amber-100 text-amber-700 border-amber-200' :
-                            displayStatus === 'Sin Tareas' ? 'bg-slate-100 text-slate-500 border-slate-200' :
-                                'bg-blue-100 text-blue-600 border-blue-200'
-                        }`}>
-                        {displayStatus}
-                    </span>
-                </div>
-
-                <div className="col-span-2 text-sm text-slate-600">
-                    {client.tasks && client.tasks.length > 0 ? (
-                        <ul className="list-disc pl-4 space-y-1">
-                            {client.tasks.slice(0, 2).map((task, i) => (
-                                <li key={i} className="truncate text-xs font-medium text-slate-500">{task}</li>
-                            ))}
-                            {client.tasks.length > 2 && (
-                                <li className="text-[10px] text-slate-400 font-bold pl-1">+ {client.tasks.length - 2} más...</li>
-                            )}
-                        </ul>
-                    ) : (
-                        <span className="italic text-slate-400 text-xs">Sin tareas</span>
-                    )}
-                </div>
-
-                <div className="col-span-3 text-sm font-bold text-slate-600 uppercase">
-                    {client.observaciones || <span className="text-slate-300 font-normal normal-case">Sin observaciones</span>}
-                </div>
-
-                <div className="col-span-1 flex justify-end gap-2" onClick={e => e.stopPropagation()}>
-                    <button onClick={() => setConvertModalOpen(true)} className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" title="Convertir a Pendientes">
-                        <CheckSquare size={18} />
-                    </button>
-                    <button onClick={onEdit} className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors">
-                        <Edit2 size={18} />
-                    </button>
-                    <button onClick={onDelete} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                        <Trash2 size={18} />
-                    </button>
-                </div>
-            </div>
-
-            {/* Expanded Area */}
-            <AnimatePresence>
-                {isExpanded && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-slate-50 border-y border-slate-100 shadow-inner">
-                        <div className="p-6 pl-12">
-                            <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2 text-sm uppercase tracking-wider">
-                                <FileSpreadsheet size={16} className="text-blue-500" />
-                                Lista de Tareas
-                            </h4>
-
-                            {/* Task List */}
-                            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm max-w-3xl">
-                                <div className="space-y-2 mb-4 max-h-[300px] overflow-y-auto">
-                                    {loadingTasks ? <span className="text-slate-400 text-sm">Cargando...</span> :
-                                        tasks.length === 0 ? <span className="text-slate-400 text-sm italic">No hay tareas registradas.</span> :
-                                            tasks.map(task => (
-                                                <div key={task.id} className="flex items-center gap-3 group">
-                                                    <button onClick={() => toggleTask(task)} className={task.completed ? "text-emerald-500" : "text-slate-300 hover:text-blue-500"}>
-                                                        {task.completed ? <CheckSquare size={18} /> : <Square size={18} />}
-                                                    </button>
-                                                    <span className={`text-sm flex-1 ${task.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{task.description}</span>
-                                                    <button onClick={() => removeTask(task.id)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-opacity">
-                                                        <X size={14} />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                </div>
-                                <form onSubmit={handleAddTask} className="flex items-center gap-2 border-t border-slate-100 pt-3">
-                                    <input className="flex-1 text-sm bg-transparent outline-none text-slate-700 placeholder-slate-400" placeholder="+ Agregar nueva tarea..." value={newTaskDesc} onChange={e => setNewTaskDesc(e.target.value)} />
-                                    <button type="submit" className="text-xs font-bold text-blue-600 hover:text-blue-500 uppercase">Agregar</button>
-                                </form>
-                            </div>
-                        </div>
-                    </motion.div>
                 )}
             </AnimatePresence>
 
@@ -635,6 +504,167 @@ const ClientRow = ({ client, displayStatus, isExpanded, onExpand, onEdit, onDele
                     </div>
                 </div>
             )}
+        </div>
+    );
+};
+
+const ClientRow = ({ client, displayStatus, isExpanded, onExpand, onEdit, onDelete, onConvert, onTasksUpdate }) => {
+    return (
+        <div className="group bg-white hover:bg-slate-50 transition-colors">
+            {/* Row Content - Responsive Card/Grid */}
+            <div
+                className={`flex flex-col md:grid md:grid-cols-12 px-6 py-4 gap-3 md:gap-4 items-start md:items-center cursor-pointer ${isExpanded ? 'bg-blue-50/50' : ''}`}
+                onClick={onExpand}
+            >
+                {/* Name Portion */}
+                <div className="w-full md:col-span-4 font-bold text-slate-700 flex items-center justify-between md:justify-start gap-2">
+                    <div className="flex items-center gap-2">
+                        {isExpanded ? <ChevronDown size={18} className="text-blue-500" /> : <div className="w-[18px]" />}
+                        <span className="bg-blue-600/10 text-blue-700 px-2 py-0.5 rounded uppercase text-sm">{client.empresa}</span>
+                    </div>
+                    {/* Mobile Status Badge (visible only on mobile next to name) */}
+                    <span className={`md:hidden px-2 py-1 rounded-full text-[10px] font-bold border ${displayStatus === 'Finalizado' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                        displayStatus === 'En Curso' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                            displayStatus === 'Sin Tareas' ? 'bg-slate-100 text-slate-500 border-slate-200' :
+                                'bg-blue-100 text-blue-600 border-blue-200'
+                        }`}>
+                        {displayStatus}
+                    </span>
+                </div>
+
+                {/* Desktop Status Portion */}
+                <div className="hidden md:flex md:col-span-2 justify-center">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${displayStatus === 'Finalizado' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                        displayStatus === 'En Curso' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                            displayStatus === 'Sin Tareas' ? 'bg-slate-100 text-slate-500 border-slate-200' :
+                                'bg-blue-100 text-blue-600 border-blue-200'
+                        }`}>
+                        {displayStatus}
+                    </span>
+                </div>
+
+                {/* Tasks Portion */}
+                <div className="w-full md:col-span-2 text-sm text-slate-600 pl-[26px] md:pl-0">
+                    {client.tasks && client.tasks.length > 0 ? (
+                        <ul className="list-disc pl-4 space-y-1">
+                            {client.tasks.slice(0, 2).map((task, i) => (
+                                <li key={i} className="truncate text-xs font-medium text-slate-500">{task}</li>
+                            ))}
+                            {client.tasks.length > 2 && (
+                                <li className="text-[10px] text-slate-400 font-bold pl-1">+ {client.tasks.length - 2} más...</li>
+                            )}
+                        </ul>
+                    ) : (
+                        <span className="italic text-slate-400 text-xs">Sin tareas</span>
+                    )}
+                </div>
+
+                {/* Observaciones Portion */}
+                <div className="w-full md:col-span-3 text-sm font-bold text-slate-600 uppercase pl-[26px] md:pl-0 line-clamp-2 md:line-clamp-none">
+                    {client.observaciones || <span className="text-slate-300 font-normal normal-case">Sin observaciones</span>}
+                </div>
+
+                {/* Actions Portion */}
+                <div className="w-full md:col-span-1 flex justify-end gap-2 mt-2 md:mt-0 pt-2 border-t border-slate-100 md:border-t-0 md:pt-0" onClick={e => e.stopPropagation()}>
+                    <button onClick={onConvert} className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" title="Convertir a Pendientes">
+                        <CheckSquare size={18} />
+                    </button>
+                    <button onClick={onEdit} className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors">
+                        <Edit2 size={18} />
+                    </button>
+                    <button onClick={onDelete} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                        <Trash2 size={18} />
+                    </button>
+                </div>
+            </div>
+
+            {/* Expanded Area */}
+            <AnimatePresence>
+                {isExpanded && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-slate-50 border-y border-slate-100 shadow-inner">
+                        <div className="p-4 md:p-6 md:pl-12">
+                            <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2 text-sm uppercase tracking-wider">
+                                <FileSpreadsheet size={16} className="text-blue-500" />
+                                Lista de Tareas
+                            </h4>
+                            <ClientTaskList client={client} onUpdate={onTasksUpdate} />
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+};
+
+const ClientTaskList = ({ client, onUpdate }) => {
+    const [tasks, setTasks] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [newTaskDesc, setNewTaskDesc] = useState('');
+
+    useEffect(() => {
+        fetchTasks();
+    }, [client.id]);
+
+    const fetchTasks = async () => {
+        setLoading(true);
+        try {
+            const res = await getClientTasks(client.id);
+            setTasks(res.data);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAddTask = async (e) => {
+        e.preventDefault();
+        if (!newTaskDesc.trim()) return;
+        try {
+            await addClientTask(client.id, newTaskDesc);
+            setNewTaskDesc('');
+            fetchTasks();
+            onUpdate();
+        } catch (error) {
+            console.error(error);
+            toast.error("Error al agregar tarea");
+        }
+    };
+
+    const toggleTask = async (task) => {
+        const newStatus = !task.completed;
+        setTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed: newStatus } : t));
+        await updateTaskStatus(task.id, newStatus);
+        onUpdate();
+    };
+
+    const removeTask = async (id) => {
+        setTasks(prev => prev.filter(t => t.id !== id));
+        await deleteTask(id);
+        onUpdate();
+    };
+
+    return (
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm max-w-3xl">
+            <div className="space-y-2 mb-4 max-h-[300px] overflow-y-auto">
+                {loading ? <span className="text-slate-400 text-sm">Cargando...</span> :
+                    tasks.length === 0 ? <span className="text-slate-400 text-sm italic">No hay tareas registradas.</span> :
+                        tasks.map(task => (
+                            <div key={task.id} className="flex items-center gap-3 group">
+                                <button onClick={() => toggleTask(task)} className={task.completed ? "text-emerald-500" : "text-slate-300 hover:text-blue-500"}>
+                                    {task.completed ? <CheckSquare size={18} /> : <Square size={18} />}
+                                </button>
+                                <span className={`text-sm flex-1 ${task.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{task.description}</span>
+                                <button onClick={() => removeTask(task.id)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-opacity">
+                                    <X size={14} />
+                                </button>
+                            </div>
+                        ))}
+            </div>
+            <form onSubmit={handleAddTask} className="flex items-center gap-2 border-t border-slate-100 pt-3">
+                <input className="flex-1 text-sm bg-transparent outline-none text-slate-700 placeholder-slate-400" placeholder="+ Agregar nueva tarea..." value={newTaskDesc} onChange={e => setNewTaskDesc(e.target.value)} />
+                <button type="submit" className="text-xs font-bold text-blue-600 hover:text-blue-500 uppercase">Agregar</button>
+            </form>
         </div>
     );
 };
