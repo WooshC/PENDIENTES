@@ -9,8 +9,8 @@ from datetime import datetime, date, timedelta
 # Reemplazar con credenciales reales o usar variables de entorno
 SMTP_SERVER = 'smtp.gmail.com' # Ejemplo Gmail
 SMTP_PORT = 587
-SENDER_EMAIL = 'moisesisraelarequipam@gmail.com'
-SENDER_PASSWORD = 'idnnypaydmygazny' 
+SENDER_EMAIL = 'tu-email'
+SENDER_PASSWORD = 'clave-producto' 
 
 def send_email(to_email, subject, body):
     try:
