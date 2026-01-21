@@ -4,3 +4,21 @@ __pycache__/
 .DS_Store
 venv/
 .env
+
+# .NET Build artifacts
+**/bin/
+**/obj/
+*.dll
+*.exe
+*.pdb
+
+# Node.js
+**/node_modules/
+**/dist/
+*.log
+
+# IDE
+.vs/
+.vscode/
+*.suo
+*.user
