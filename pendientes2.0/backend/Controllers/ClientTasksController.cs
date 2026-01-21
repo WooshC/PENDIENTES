@@ -127,12 +127,21 @@ public class ClientTasksController : ControllerBase
         if (!pendingTasks.Any())
             return BadRequest(new { error = "No hay tareas pendientes para este cliente" });
 
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine("Tareas pendientes:");
-
-        foreach (var task in pendingTasks)
+        // Use custom description if provided, otherwise auto-generate from tasks
+        string descripcionFinal;
+        if (!string.IsNullOrWhiteSpace(input.Descripcion))
         {
-            sb.AppendLine($"- {task.Description}");
+            descripcionFinal = input.Descripcion;
+        }
+        else
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Tareas pendientes:");
+            foreach (var task in pendingTasks)
+            {
+                sb.AppendLine($"- {task.Description}");
+            }
+            descripcionFinal = sb.ToString();
         }
 
         var today = DateTime.Now.ToString("yyyy-MM-dd");
@@ -141,7 +150,7 @@ public class ClientTasksController : ControllerBase
         {
             Fecha = today,
             Actividad = $"Pendientes - {client.Empresa}",
-            Descripcion = sb.ToString(),
+            Descripcion = descripcionFinal,
             Empresa = client.Empresa,
             Estado = "Pendiente",
             Observaciones = client.Observaciones ?? "Ninguna",
@@ -179,4 +188,6 @@ public class CreatePendingInputModel
     public int DiasAntesNotificacion { get; set; } = 3;
     [System.Text.Json.Serialization.JsonPropertyName("fecha_limite")]
     public string? FechaLimite { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("descripcion")]
+    public string? Descripcion { get; set; }
 }

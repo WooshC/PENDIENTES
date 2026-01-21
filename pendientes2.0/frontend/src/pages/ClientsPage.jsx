@@ -21,7 +21,7 @@ const ClientsPage = () => {
     // Forms
     const [editingClient, setEditingClient] = useState(null);
     const [clientFormData, setClientFormData] = useState({ empresa: '', observaciones: '', procedimiento: '', check_estado: false, estado: 'Pendiente' });
-    const [convertData, setConvertData] = useState({ email: '', dias: 3, fecha: '' });
+    const [convertData, setConvertData] = useState({ email: '', dias: 3, fecha: '', descripcion: '' });
     const [clientToConvert, setClientToConvert] = useState(null);
 
     // Global Task Form
@@ -132,7 +132,8 @@ const ClientsPage = () => {
             const payload = {
                 email: convertData.email,
                 dias_antes_notificacion: dias,
-                fecha_limite: convertData.fecha || null
+                fecha_limite: convertData.fecha || null,
+                descripcion: convertData.descripcion || ''
             };
 
             const res = await createPendingTasks(clientToConvert.id, payload);
@@ -368,6 +369,12 @@ const ClientsPage = () => {
                                     onDelete={() => handleDeleteClient(client.id)}
                                     onConvert={() => {
                                         setClientToConvert(client);
+                                        // Pre-fill description with observations and tasks
+                                        const tasksList = client.tasks && client.tasks.length > 0 
+                                            ? client.tasks.map(t => `- ${t}`).join('\n')
+                                            : '- ';
+                                        const prefilledDesc = `Observaciones:\n${client.observaciones || ''}\n\nTareas:\n${tasksList}`;
+                                        setConvertData({ email: '', dias: 3, fecha: '', descripcion: prefilledDesc });
                                         setConvertModalOpen(true);
                                     }}
                                     onTasksUpdate={() => fetchClientes(true)}
@@ -483,18 +490,31 @@ const ClientsPage = () => {
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm px-4" onClick={e => e.stopPropagation()}>
                     <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
                         <h3 className="font-bold text-lg text-slate-800 mb-4">Generar Pendientes</h3>
-                        <div className="space-y-3">
+                        <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 uppercase">Descripción del Pendiente</label>
+                                <textarea 
+                                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1 focus:border-blue-500 outline-none text-slate-700 font-mono resize-none" 
+                                    value={convertData.descripcion} 
+                                    onChange={e => setConvertData({ ...convertData, descripcion: e.target.value })} 
+                                    placeholder="Observaciones:\nTareas:\n- "
+                                    rows="8"
+                                />
+                                <p className="text-xs text-slate-400 mt-1">Edita la descripción antes de generar el pendiente</p>
+                            </div>
                             <div>
                                 <label className="text-xs font-bold text-slate-500 uppercase">Email Notificación</label>
                                 <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1 focus:border-blue-500 outline-none text-slate-700" value={convertData.email} onChange={e => setConvertData({ ...convertData, email: e.target.value })} placeholder="correo@ejemplo.com" />
                             </div>
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase">Días Antelación</label>
-                                <input type="number" min="1" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1 focus:border-blue-500 outline-none text-slate-700" value={convertData.dias} onChange={e => setConvertData({ ...convertData, dias: e.target.value })} />
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase">Fecha Límite</label>
-                                <input type="date" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1 focus:border-blue-500 outline-none text-slate-700" value={convertData.fecha} onChange={e => setConvertData({ ...convertData, fecha: e.target.value })} />
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Días Antelación</label>
+                                    <input type="number" min="1" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1 focus:border-blue-500 outline-none text-slate-700" value={convertData.dias} onChange={e => setConvertData({ ...convertData, dias: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Fecha Límite</label>
+                                    <input type="date" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1 focus:border-blue-500 outline-none text-slate-700" value={convertData.fecha} onChange={e => setConvertData({ ...convertData, fecha: e.target.value })} />
+                                </div>
                             </div>
                         </div>
                         <div className="flex justify-end gap-2 mt-6">

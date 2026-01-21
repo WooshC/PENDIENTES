@@ -15,11 +15,20 @@
 - Fechas límite y alertas automáticas
 - Búsqueda y filtrado avanzado
 
-### 👥 Gestión de Clientes
+### � Sistema de Notificaciones Mejorado
+- **Correos HTML profesionales** con diseño moderno
+- **Parsing automático** de Observaciones y Tareas
+- **Secciones visuales** separadas con colores distintivos
+- **Botón interactivo** "Marcar Todas como Completadas" desde el correo
+- **Badges de urgencia** con colores según tiempo restante
+- **Configuración de red** para acceso desde cualquier PC en la oficina
+
+### �👥 Gestión de Clientes
 - Directorio completo de empresas/clientes
 - Tareas asociadas a cada cliente
 - Estados de progreso (Sin Tareas, Pendiente, En Curso, Finalizado)
 - Observaciones y procedimientos
+- **Descripción editable** antes de convertir a pendientes
 - Conversión de tareas a pendientes con notificación
 
 ### 📊 Características Avanzadas
@@ -53,7 +62,9 @@ PENDIENTES/
 │   │   │   └── Entities.cs
 │   │   ├── Services/               # Lógica de negocio
 │   │   │   ├── IEmailService.cs
-│   │   │   └── EmailService.cs
+│   │   │   ├── EmailService.cs
+│   │   │   ├── IEmailTemplateService.cs
+│   │   │   └── EmailTemplateService.cs  # Plantillas HTML para emails
 │   │   ├── Properties/
 │   │   │   └── launchSettings.json
 │   │   ├── appsettings.json        # Configuración pública
@@ -141,9 +152,10 @@ cd PENDIENTES/pendientes2.0
    copy appsettings.local.json.example appsettings.local.json
    ```
 
-2. Edita `appsettings.local.json` con tus credenciales:
+2. Edita `appsettings.local.json` con tus credenciales **Y tu IP local**:
    ```json
    {
+     "BaseUrl": "http://TU-IP-LOCAL:5002",
      "Email": {
        "SmtpServer": "smtp.gmail.com",
        "SmtpPort": "587",
@@ -152,6 +164,12 @@ cd PENDIENTES/pendientes2.0
      }
    }
    ```
+
+   **Importante sobre BaseUrl**:
+   - Obtén tu IP local con `ipconfig` (Windows) o `ifconfig` (Linux/Mac)
+   - Ejemplo: `"BaseUrl": "http://192.168.0.13:5002"`
+   - Esto permite que los links en los correos funcionen desde cualquier PC en la oficina
+   - Si solo usarás la app localmente, usa: `"BaseUrl": "http://localhost:5002"`
 
 3. **Obtener contraseña de aplicación de Gmail**:
    - Ve a [https://myaccount.google.com/security](https://myaccount.google.com/security)
@@ -247,9 +265,97 @@ http://192.168.X.X:5002
 netsh advfirewall firewall add rule name="TaskFlow Backend" dir=in action=allow protocol=TCP localport=5002
 ```
 
+**Configurar BaseUrl para Red Local:**
+
+Para que los correos funcionen desde cualquier PC:
+
+1. Obtén tu IP local:
+   ```bash
+   ipconfig
+   ```
+   Ejemplo: `192.168.0.13`
+
+2. Actualiza `backend/appsettings.local.json`:
+   ```json
+   {
+     "BaseUrl": "http://192.168.0.13:5002"
+   }
+   ```
+
+3. Reinicia el backend
+
+Ahora los correos tendrán links que funcionan desde cualquier PC en la red.
+
+> 📖 **Más detalles**: Ver `backend/CONFIG.md` para documentación completa de configuración.
+
 ---
 
-## 📊 Base de Datos
+## � Sistema de Correos Mejorado
+
+### Características del Email HTML
+
+Los correos ahora tienen un diseño profesional con:
+
+#### 🎨 Diseño Visual
+- **Header con gradiente morado** (#667eea → #764ba2)
+- **Secciones separadas** con colores distintivos
+- **Responsive** - Se ve bien en móvil y desktop
+- **Badges de urgencia** con colores según tiempo restante
+
+#### 📋 Parsing Automático de Descripción
+
+El sistema detecta automáticamente las secciones en la descripción del pendiente.
+
+**Ejemplo de entrada:**
+```
+Observaciones:
+Hay que crear el IR y las tablas del 2026
+
+Tareas:
+- Crear formula I.R
+- Crear tablas 2026
+```
+
+**Resultado en el correo:**
+- Caja azul con las observaciones
+- Caja verde con lista de tareas (viñetas)
+- Botón verde "Marcar Todas como Completadas"
+
+#### ⚡ Botón Interactivo
+
+Al hacer clic en "Marcar Todas como Completadas":
+
+1. ✅ **Pendiente** → Cambia a estado "Finalizado"
+2. ✅ **Cliente** → Marca como completado (`check_estado = true`)
+3. ✅ **Tareas del Cliente** → Se eliminan todas
+4. ✅ **Confirmación** → Muestra página de éxito
+
+#### 🎯 Badges de Urgencia
+
+- 🔴 **Rojo**: Vence hoy o ya venció
+- 🟡 **Amarillo**: Vence en 2-3 días
+- 🔵 **Azul**: Vence en más de 3 días
+
+### Flujo de Trabajo
+
+1. **Crear Pendiente desde Cliente:**
+   - En la página de Clientes, click en "Convertir a Pendientes"
+   - Edita la descripción (se pre-llena con observaciones y tareas)
+   - Formato: `Observaciones:\n...\n\nTareas:\n- ...`
+   - Completa email, días y fecha límite
+
+2. **Sistema envía correo con:**
+   - Secciones visuales separadas
+   - Badge de urgencia
+   - Botón interactivo
+
+3. **Usuario completa desde el correo:**
+   - Click en el botón
+   - Todo se actualiza automáticamente
+
+---
+
+## �📊 Base de Datos
 
 ### Estructura de Tablas
 
@@ -370,6 +476,22 @@ WHERE fecha IS NULL;
 
 **Prevención**: El modelo ahora tiene valores por defecto para evitar este error en el futuro.
 
+### Botón "Marcar Todas como Completadas" no funciona desde otra PC
+
+**Causa**: El `BaseUrl` está configurado como `localhost`
+
+**Solución**:
+1. Obtén tu IP local con `ipconfig`
+2. Actualiza `backend/appsettings.local.json`:
+   ```json
+   {
+     "BaseUrl": "http://TU-IP:5002"
+   }
+   ```
+3. Reinicia el backend
+
+**Ejemplo**: Si tu IP es `192.168.0.13`, usa `"BaseUrl": "http://192.168.0.13:5002"`
+
 ---
 
 ## 📈 Roadmap v2.1 (Próximamente)
@@ -436,5 +558,5 @@ Este proyecto es de uso interno. Todos los derechos reservados.
 
 ---
 
-**Versión**: 2.0.0  
+**Versión**: 2.1.0 - Email Features Update  
 **Última actualización**: Enero 2026

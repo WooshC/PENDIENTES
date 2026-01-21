@@ -12,11 +12,15 @@ public class NotificationsController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IEmailService _emailService;
+    private readonly IEmailTemplateService _emailTemplateService;
+    private readonly IConfiguration _configuration;
 
-    public NotificationsController(AppDbContext context, IEmailService emailService)
+    public NotificationsController(AppDbContext context, IEmailService emailService, IEmailTemplateService emailTemplateService, IConfiguration configuration)
     {
         _context = context;
         _emailService = emailService;
+        _emailTemplateService = emailTemplateService;
+        _configuration = configuration;
     }
 
     [HttpPost("notify/{id}")]
@@ -28,20 +32,18 @@ public class NotificationsController : ControllerBase
         if (string.IsNullOrEmpty(item.EmailNotificacion))
             return BadRequest(new { error = "No tiene correo configurado" });
 
+        var baseUrl = _configuration["BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
         var subject = $"🔔 Recordatorio: '{item.Actividad}'";
-        var body = $@"Hola,
-        
-Registro de pendiente:
---------------------------------------------------
-ACTIVIDAD: {item.Actividad}
---------------------------------------------------
-📅 Fecha Límite: {item.FechaLimite}
-🏢 Empresa:      {item.Empresa}
-📝 Descripción:  {item.Descripcion}
-⚠️ Estado Actual: {item.Estado}
-        
-Saludos,
-Tu Asistente Virtual";
+        var body = _emailTemplateService.GeneratePendienteNotificationEmail(
+            item.Id,
+            item.Actividad ?? "- sueldo básico",
+            item.FechaLimite ?? "",
+            item.Empresa ?? "",
+            item.Descripcion ?? "Tareas pendientes.",
+            item.Estado ?? "Pendiente",
+            "Requiere atención",
+            baseUrl
+        );
 
         var success = await _emailService.SendEmailAsync(item.EmailNotificacion, subject, body, item.CCEmails);
         if (success)
@@ -81,31 +83,22 @@ Tu Asistente Virtual";
             {
                 if (string.IsNullOrEmpty(item.EmailNotificacion)) continue;
 
-                string urgency = $"Vence en {daysRemaining} días";
+                string urgency = $"Vence en {(int)daysRemaining} días";
                 if (daysRemaining == 0) urgency = "¡Vence hoy!";
                 if (daysRemaining < 0) urgency = "¡Venció hace un día!";
 
+                var baseUrl = _configuration["BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
                 var subject = $"🔔 Recordatorio: '{item.Actividad}' vence pronto";
-                var body = $@"
-                    Hola,
-
-                    Este es un recordatorio automático de tu Sistema de Pendientes.
-
-                    --------------------------------------------------
-                    ACTIVIDAD: {item.Actividad}
-                    --------------------------------------------------
-                    
-                    📅 Fecha Límite: {item.FechaLimite} ({urgency})
-                    🏢 Empresa:      {item.Empresa}
-                    📝 Descripción:  {item.Descripcion}
-                    
-                    ⚠️ Estado Actual: {item.Estado}
-                    
-                    Por favor, gestiona este pendiente lo antes posible.
-
-                    Saludos,
-                    Tu Asistente Virtual
-                    ";
+                var body = _emailTemplateService.GeneratePendienteNotificationEmail(
+                    item.Id,
+                    item.Actividad ?? "",
+                    $"{item.FechaLimite}",
+                    item.Empresa ?? "",
+                    item.Descripcion ?? "",
+                    item.Estado ?? "Pendiente",
+                    urgency,
+                    baseUrl
+                );
 
                 bool sent = await _emailService.SendEmailAsync(item.EmailNotificacion, subject, body, item.CCEmails);
                 if (sent) sentCount++;

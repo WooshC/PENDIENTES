@@ -1,4 +1,5 @@
 {
+  "BaseUrl": "http://TU-IP-LOCAL:5002",
   "Email": {
     "SmtpServer": "smtp.gmail.com",
     "SmtpPort": "587",
@@ -6,3 +7,18 @@
     "SenderPassword": "tu-contraseña-de-aplicacion-aqui"
   }
 }
+
+// INSTRUCCIONES:
+// 1. Copia este archivo como "appsettings.local.json" (sin .example)
+// 2. Obtén tu IP local ejecutando: ipconfig (Windows) o ifconfig (Linux/Mac)
+// 3. Reemplaza "TU-IP-LOCAL" con tu IP real (ej: 192.168.0.13)
+// 4. Configura tu email y contraseña de aplicación de Gmail
+// 5. IMPORTANTE: appsettings.local.json está en .gitignore y NO se sube a Git
+//
+// Ejemplo de BaseUrl:
+//   - Para uso local: "http://localhost:5002"
+//   - Para red de oficina: "http://192.168.0.13:5002"
+//   - Para servidor público: "http://tu-dominio.com:5002"
+//
+// El BaseUrl se usa para generar links en los correos electrónicos
+// que funcionan desde cualquier PC en la red.
