@@ -1,0 +1,8 @@
+{
+  "Email": {
+    "SmtpServer": "smtp.gmail.com",
+    "SmtpPort": "587",
+    "SenderEmail": "tu-email@gmail.com",
+    "SenderPassword": "tu-contraseña-de-aplicacion-aqui"
+  }
+}
