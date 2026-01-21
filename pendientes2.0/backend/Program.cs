@@ -4,6 +4,9 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Load local configuration file (for credentials)
+builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true);
+
 // Force listening on all interfaces to fix Cloudflare IPv6/IPv4 resolution issues
 builder.WebHost.UseUrls("http://*:5002");
 
