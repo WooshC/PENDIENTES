@@ -20,7 +20,7 @@ const ClientsPage = () => {
 
     // Forms
     const [editingClient, setEditingClient] = useState(null);
-    const [clientFormData, setClientFormData] = useState({ empresa: '', observaciones: '', procedimiento: '', check_estado: false, estado: 'Pendiente' });
+    const [clientFormData, setClientFormData] = useState({ empresa: '', observaciones: '', check_estado: false, estado: 'Pendiente' });
     const [convertData, setConvertData] = useState({ email: '', dias: 3, fecha: '', descripcion: '' });
     const [clientToConvert, setClientToConvert] = useState(null);
 
@@ -46,8 +46,9 @@ const ClientsPage = () => {
     };
 
     const getClientStatus = (client) => {
+
+
         if (!client.total_tasks || client.total_tasks === 0) return 'Sin Tareas';
-        if (client.check_estado) return 'Finalizado';
         return client.estado || 'Pendiente';
     };
 
@@ -168,7 +169,6 @@ const ClientsPage = () => {
             ID: c.id,
             Empresa: c.empresa,
             Estado: c.estado,
-            Procedimiento: c.procedimiento,
             Observaciones: c.observaciones,
             Tareas: (c.tasks || []).join('\n')
         }));
@@ -181,8 +181,8 @@ const ClientsPage = () => {
 
     const handleDownloadTemplate = () => {
         const ws = XLSX.utils.json_to_sheet([
-            { Empresa: "Empresa Ejemplo", Estado: "Pendiente", Procedimiento: "Revisar facturas", Observaciones: "Observación opcional" },
-            { Empresa: "Otra Empresa", Estado: "En Curso", Procedimiento: "", Observaciones: "" }
+            { Empresa: "Empresa Ejemplo", Estado: "Pendiente", Observaciones: "Observación opcional" },
+            { Empresa: "Otra Empresa", Estado: "En Curso", Observaciones: "" }
         ]);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Plantilla");
@@ -211,7 +211,6 @@ const ClientsPage = () => {
                 const validClients = data.map(row => ({
                     empresa: row.Empresa || row.empresa,
                     estado: row.Estado || row.estado || 'Pendiente',
-                    procedimiento: row.Procedimiento || row.procedimiento || '',
                     observaciones: row.Observaciones || row.observaciones || '',
                     check_estado: false
                 })).filter(c => c.empresa); // Filter out empty rows
@@ -278,7 +277,7 @@ const ClientsPage = () => {
                         <div className="hidden sm:block h-6 w-px bg-slate-200 mx-1"></div>
 
                         <button
-                            onClick={() => { setEditingClient(null); setClientFormData({ empresa: '', observaciones: '', procedimiento: '', check_estado: false, estado: 'Pendiente' }); setClientModalOpen(true); }}
+                            onClick={() => { setEditingClient(null); setClientFormData({ empresa: '', observaciones: '', check_estado: false, estado: 'Pendiente' }); setClientModalOpen(true); }}
                             className="flex items-center gap-2 px-4 py-2 bg-blue-600 font-bold text-white rounded-xl shadow-lg shadow-blue-500/20 hover:brightness-110 active:scale-95 transition-all text-sm"
                         >
                             <Plus size={18} />
@@ -370,7 +369,7 @@ const ClientsPage = () => {
                                     onConvert={() => {
                                         setClientToConvert(client);
                                         // Pre-fill description with observations and tasks
-                                        const tasksList = client.tasks && client.tasks.length > 0 
+                                        const tasksList = client.tasks && client.tasks.length > 0
                                             ? client.tasks.map(t => `- ${t}`).join('\n')
                                             : '- ';
                                         const prefilledDesc = `Observaciones:\n${client.observaciones || ''}\n\nTareas:\n${tasksList}`;
@@ -399,19 +398,13 @@ const ClientsPage = () => {
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Nombre Empresa</label>
                                     <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 font-medium" value={clientFormData.empresa} onChange={e => setClientFormData({ ...clientFormData, empresa: e.target.value })} required />
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Estado</label>
-                                        <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 text-slate-700" value={clientFormData.estado} onChange={e => setClientFormData({ ...clientFormData, estado: e.target.value })}>
-                                            <option value="Pendiente">Pendiente</option>
-                                            <option value="Finalizado">Finalizado</option>
-                                            <option value="En Curso">En Curso</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Procedimiento</label>
-                                        <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 text-slate-700" value={clientFormData.procedimiento} onChange={e => setClientFormData({ ...clientFormData, procedimiento: e.target.value })} placeholder="Ej. Actualizar tablas" />
-                                    </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Estado</label>
+                                    <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 text-slate-700" value={clientFormData.estado} onChange={e => setClientFormData({ ...clientFormData, estado: e.target.value })}>
+                                        <option value="Pendiente">Pendiente</option>
+                                        <option value="Finalizado">Finalizado</option>
+                                        <option value="En Curso">En Curso</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Observaciones</label>
@@ -493,10 +486,10 @@ const ClientsPage = () => {
                         <div className="space-y-3 max-h-[60vh] overflow-y-auto">
                             <div>
                                 <label className="text-xs font-bold text-slate-500 uppercase">Descripción del Pendiente</label>
-                                <textarea 
-                                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1 focus:border-blue-500 outline-none text-slate-700 font-mono resize-none" 
-                                    value={convertData.descripcion} 
-                                    onChange={e => setConvertData({ ...convertData, descripcion: e.target.value })} 
+                                <textarea
+                                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mt-1 focus:border-blue-500 outline-none text-slate-700 font-mono resize-none"
+                                    value={convertData.descripcion}
+                                    onChange={e => setConvertData({ ...convertData, descripcion: e.target.value })}
                                     placeholder="Observaciones:\nTareas:\n- "
                                     rows="8"
                                 />

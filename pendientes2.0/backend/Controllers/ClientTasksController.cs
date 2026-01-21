@@ -16,6 +16,44 @@ public class ClientTasksController : ControllerBase
         _context = context;
     }
 
+    private async Task UpdateClientStatus(int clientId)
+    {
+        var client = await _context.Clientes.FindAsync(clientId);
+        if (client == null) return;
+
+        var totalTasks = await _context.ClientTasks.CountAsync(t => t.ClientId == clientId);
+        var completedTasks = await _context.ClientTasks.CountAsync(t => t.ClientId == clientId && t.Completed);
+
+        // Update estado based on task status
+        if (totalTasks == 0)
+        {
+            // No tasks - estado doesn't matter much, but we can set it to a default
+            // The frontend will show "Sin Tareas" regardless
+            client.Estado = "Pendiente";
+            client.CheckEstado = false;
+        }
+        else if (completedTasks == totalTasks)
+        {
+            // All tasks completed
+            client.Estado = "Finalizado";
+            client.CheckEstado = true;
+        }
+        else if (completedTasks > 0)
+        {
+            // Some tasks completed, some pending
+            client.Estado = "En Curso";
+            client.CheckEstado = false;
+        }
+        else
+        {
+            // Has tasks but none completed
+            client.Estado = "Pendiente";
+            client.CheckEstado = false;
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
     [HttpGet("clients/{clientId}/tasks")]
     public async Task<IActionResult> GetClientTasks(int clientId)
     {
@@ -37,6 +75,10 @@ public class ClientTasksController : ControllerBase
         };
         _context.ClientTasks.Add(task);
         await _context.SaveChangesAsync();
+        
+        // Update client status
+        await UpdateClientStatus(clientId);
+        
         return Created("", new { message = "Tarea agregada" });
     }
 
@@ -54,6 +96,10 @@ public class ClientTasksController : ControllerBase
 
         _context.ClientTasks.AddRange(tasks);
         await _context.SaveChangesAsync();
+        
+        // Update client status
+        await UpdateClientStatus(clientId);
+        
         return Created("", new { message = "Tareas agregadas" });
     }
 
@@ -65,6 +111,10 @@ public class ClientTasksController : ControllerBase
 
         task.Completed = input.Completed;
         await _context.SaveChangesAsync();
+        
+        // Update client status
+        await UpdateClientStatus(task.ClientId);
+        
         return Ok(new { message = "Estado actualizado" });
     }
 
@@ -74,8 +124,13 @@ public class ClientTasksController : ControllerBase
         var task = await _context.ClientTasks.FindAsync(id);
         if (task == null) return NotFound();
 
+        var clientId = task.ClientId;
         _context.ClientTasks.Remove(task);
         await _context.SaveChangesAsync();
+        
+        // Update client status
+        await UpdateClientStatus(clientId);
+        
         return Ok(new { message = "Tarea eliminada" });
     }
 
@@ -96,6 +151,13 @@ public class ClientTasksController : ControllerBase
 
         _context.ClientTasks.AddRange(tasks);
         await _context.SaveChangesAsync();
+        
+        // Update status for all affected clients
+        foreach (var cid in includedIds)
+        {
+            await UpdateClientStatus(cid);
+        }
+        
         return Created("", new { message = $"Tarea global agregada a {includedIds.Count} clientes" });
     }
 

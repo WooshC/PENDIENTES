@@ -61,10 +61,6 @@ public class Cliente
     [System.Text.Json.Serialization.JsonPropertyName("check_estado")]
     public bool CheckEstado { get; set; }
 
-    [Column("procedimiento")]
-    [System.Text.Json.Serialization.JsonPropertyName("procedimiento")]
-    public string? Procedimiento { get; set; }
-
     [Column("estado")]
     [System.Text.Json.Serialization.JsonPropertyName("estado")]
     public string? Estado { get; set; } = "Pendiente";

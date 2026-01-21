@@ -36,7 +36,6 @@ public class ClientesController : ControllerBase
                 c.Empresa,
                 c.Observaciones,
                 c.CheckEstado, // bool
-                c.Procedimiento,
                 c.Estado,
                 // Calculated fields
                 // Note: EF Core translation for String.Join might be tricky in SQLite for GroupConcat.
@@ -60,7 +59,6 @@ public class ClientesController : ControllerBase
             empresa = x.Empresa,
             observaciones = x.Observaciones,
             check_estado = x.CheckEstado ? 1 : 0, // Python returned integer 0/1
-            procedimiento = x.Procedimiento,
             estado = x.Estado,
             total_tasks = x.TotalTasks,
             completed_tasks = x.CompletedTasks,
@@ -110,7 +108,6 @@ public class ClientesController : ControllerBase
         existing.Empresa = cliente.Empresa;
         existing.Observaciones = cliente.Observaciones;
         existing.CheckEstado = cliente.CheckEstado;
-        existing.Procedimiento = cliente.Procedimiento;
         existing.Estado = cliente.Estado;
 
         await _context.SaveChangesAsync();
