@@ -43,7 +43,7 @@ ACTIVIDAD: {item.Actividad}
 Saludos,
 Tu Asistente Virtual";
 
-        var success = await _emailService.SendEmailAsync(item.EmailNotificacion, subject, body);
+        var success = await _emailService.SendEmailAsync(item.EmailNotificacion, subject, body, item.CCEmails);
         if (success)
             return Ok(new { message = $"Correo enviado a {item.EmailNotificacion}" });
         else
@@ -107,7 +107,7 @@ Tu Asistente Virtual";
                     Tu Asistente Virtual
                     ";
 
-                bool sent = await _emailService.SendEmailAsync(item.EmailNotificacion, subject, body);
+                bool sent = await _emailService.SendEmailAsync(item.EmailNotificacion, subject, body, item.CCEmails);
                 if (sent) sentCount++;
             }
         }

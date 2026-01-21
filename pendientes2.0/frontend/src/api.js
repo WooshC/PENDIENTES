@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 // Ensure this matches your backend URL.
-const API_URL = 'http://localhost:5002/api';
+// Relative path for same-origin serving (production) or localhost for dev (if proxy setup, but let's stick to relative for the integrated build)
+const API_URL = import.meta.env.PROD ? '/api' : 'http://localhost:5002/api';
 
 export const api = axios.create({
     baseURL: API_URL,
@@ -29,7 +30,7 @@ export const addClientTask = (clientId, description) => api.post(`/clients/${cli
 export const addClientTasksBulk = (clientId, tasks) => api.post(`/clients/${clientId}/tasks/bulk`, { tasks });
 export const updateTaskStatus = (taskId, completed) => api.put(`/tasks/${taskId}`, { completed });
 export const deleteTask = (taskId) => api.delete(`/tasks/${taskId}`);
-export const addGlobalTask = (description) => api.post('/tasks/global', { description });
+export const addGlobalTask = (data) => api.post('/tasks/global', data);
 export const createPendingTasks = (clientId, data) => api.post(`/clients/${clientId}/create-pending-tasks`, data);
 
 // Check Notifications (Manual Trigger for Admin)

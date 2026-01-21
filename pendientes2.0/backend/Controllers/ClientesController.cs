@@ -49,7 +49,7 @@ public class ClientesController : ControllerBase
                 // We'll fetch tasks locally or just skip if the frontend requests tasks in detail later.
                 // The python code uses GROUP_CONCAT. The frontend likely parses this.
                 // Let's do client side evaluation for the concatenation if the dataset is small (clients usually are < 1000).
-                Tasks = _context.ClientTasks.Where(t => t.ClientId == c.Id).Select(t => t.Description).ToList()
+                Tasks = _context.ClientTasks.Where(t => t.ClientId == c.Id && !t.Completed).Select(t => t.Description).ToList()
             })
             .ToListAsync();
 
@@ -64,7 +64,8 @@ public class ClientesController : ControllerBase
             estado = x.Estado,
             total_tasks = x.TotalTasks,
             completed_tasks = x.CompletedTasks,
-            task_list = string.Join("|||", x.Tasks)
+            task_list = string.Join("|||", x.Tasks),
+            tasks = x.Tasks // Direct array for frontend convenience
         });
 
         return Ok(mapped);

@@ -80,10 +80,14 @@ public class ClientTasksController : ControllerBase
     }
 
     [HttpPost("tasks/global")]
-    public async Task<IActionResult> AddGlobalTask([FromBody] TaskInputModel input)
+    public async Task<IActionResult> AddGlobalTask([FromBody] GlobalTaskInputModel input)
     {
-        var clientIds = await _context.Clientes.Select(c => c.Id).ToListAsync();
-        var tasks = clientIds.Select(cid => new ClientTask
+        var allClients = await _context.Clientes.Select(c => c.Id).ToListAsync();
+        
+        // Filter out excluded IDs
+        var includedIds = allClients.Except(input.ExcludedClientIds ?? new List<int>()).ToList();
+        
+        var tasks = includedIds.Select(cid => new ClientTask
         {
             ClientId = cid,
             Description = input.Description,
@@ -92,14 +96,25 @@ public class ClientTasksController : ControllerBase
 
         _context.ClientTasks.AddRange(tasks);
         await _context.SaveChangesAsync();
-        return Created("", new { message = "Tarea global agregada a todos los clientes" });
+        return Created("", new { message = $"Tarea global agregada a {includedIds.Count} clientes" });
     }
 
     [HttpPost("clients/{clientId}/create-pending-tasks")]
     public async Task<IActionResult> CreatePendingTasks(int clientId, [FromBody] CreatePendingInputModel input)
     {
+        Console.WriteLine($"[DEBUG] CreatePendingTasks Payload: Email={input.Email}, Dias={input.DiasAntesNotificacion}, FechaLim={input.FechaLimite}, ClientId={clientId}");
+
+        if (input == null)
+        {
+             Console.WriteLine("[DEBUG] Input model is null");
+             return BadRequest(new { error = "Datos inválidos (input null)" });
+        }
+
         if (string.IsNullOrEmpty(input.Email))
+        {
+            Console.WriteLine("[DEBUG] Email is missing");
             return BadRequest(new { error = "Debe especificar un correo electrónico" });
+        }
 
         var client = await _context.Clientes.FindAsync(clientId);
         if (client == null) return NotFound(new { error = "Cliente no encontrado" });
@@ -112,38 +127,53 @@ public class ClientTasksController : ControllerBase
         if (!pendingTasks.Any())
             return BadRequest(new { error = "No hay tareas pendientes para este cliente" });
 
-        int createdCount = 0;
-        var today = DateTime.Now.ToString("yyyy-MM-dd");
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Tareas pendientes:");
 
         foreach (var task in pendingTasks)
         {
-            var pendiente = new Pendiente
-            {
-                Fecha = today,
-                Actividad = task.Description,
-                Descripcion = $"Tarea del cliente: {client.Empresa}",
-                Empresa = client.Empresa,
-                Estado = "Pendiente",
-                Observaciones = "",
-                FechaLimite = input.FechaLimite, // Can be null/empty
-                EmailNotificacion = input.Email,
-                DiasAntesNotificacion = input.DiasAntesNotificacion
-            };
-            _context.Pendientes.Add(pendiente);
-            createdCount++;
+            sb.AppendLine($"- {task.Description}");
         }
 
+        var today = DateTime.Now.ToString("yyyy-MM-dd");
+
+        var pendiente = new Pendiente
+        {
+            Fecha = today,
+            Actividad = $"Pendientes - {client.Empresa}",
+            Descripcion = sb.ToString(),
+            Empresa = client.Empresa,
+            Estado = "Pendiente",
+            Observaciones = client.Observaciones ?? "Ninguna",
+            FechaLimite = input.FechaLimite,
+            EmailNotificacion = input.Email,
+            DiasAntesNotificacion = input.DiasAntesNotificacion
+        };
+        _context.Pendientes.Add(pendiente);
+        
+        // We don't mark original tasks as completed here, usually? 
+        // The user didn't ask to close them, but "Create Pending Tasks" implies moving them.
+        // The logic previously didn't close them either (it just copied them).
+        // So we keep that behavior.
+
+
         await _context.SaveChangesAsync();
-        return Created("", new { message = $"{createdCount} tarea(s) agregada(s) a Pendientes", count = createdCount });
+        return Created("", new { message = "Pendiente generado correctamente", count = 1 });
     }
 }
 
 // Params models
 public class TaskInputModel { public required string Description { get; set; } }
+public class GlobalTaskInputModel 
+{ 
+    public required string Description { get; set; } 
+    public List<int>? ExcludedClientIds { get; set; }
+}
 public class BulkTaskInputModel { public List<string>? Tasks { get; set; } }
 public class TaskStatusInputModel { public bool Completed { get; set; } }
 public class CreatePendingInputModel 
 { 
+    [System.Text.Json.Serialization.JsonPropertyName("email")]
     public string? Email { get; set; } 
     [System.Text.Json.Serialization.JsonPropertyName("dias_antes_notificacion")]
     public int DiasAntesNotificacion { get; set; } = 3;

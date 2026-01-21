@@ -4,7 +4,7 @@ import { LayoutDashboard, Users, Bell, CheckCircle2 } from 'lucide-react';
 
 const Layout = ({ children }) => {
     return (
-        <div className="min-h-screen bg-slate-900 text-slate-100 flex font-sans selection:bg-blue-500/30">
+        <div className="min-h-screen bg-[#0f172a] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))] text-slate-100 flex font-sans selection:bg-blue-500/30">
             {/* Sidebar */}
             <aside className="w-64 bg-slate-950 border-r border-slate-800 flex-shrink-0 fixed h-full z-10 hidden md:flex flex-col transition-all duration-300">
                 <div className="p-6 border-b border-slate-800 flex items-center gap-3">

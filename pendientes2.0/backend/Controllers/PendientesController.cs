@@ -54,6 +54,7 @@ public class PendientesController : ControllerBase
         existing.Actividad = pendiente.Actividad;
         existing.Descripcion = pendiente.Descripcion;
         existing.Empresa = pendiente.Empresa;
+        existing.CCEmails = pendiente.CCEmails;
         existing.Estado = pendiente.Estado;
         existing.Observaciones = pendiente.Observaciones;
         existing.FechaLimite = pendiente.FechaLimite;

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { getPendientes, addPendiente, updatePendiente, deletePendiente, notifyPendiente } from '../api';
 import { Plus, Search, Trash2, Edit2, Bell, X, Calendar as CalendarIcon, Send, MessageSquare, Clock, Building2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Toaster, toast } from 'sonner';
 
 const PendingPage = () => {
     const [pendientes, setPendientes] = useState([]);
@@ -19,8 +20,10 @@ const PendingPage = () => {
         observaciones: '',
         fecha_limite: '',
         email_notificacion: '',
+        cc_emails: '',
         dias_antes_notificacion: 3
     });
+    const [showCC, setShowCC] = useState(false);
 
     useEffect(() => {
         fetchPendientes();
@@ -43,8 +46,10 @@ const PendingPage = () => {
         try {
             if (editingItem) {
                 await updatePendiente(editingItem.id, formData);
+                toast.success("Mensaje actualizado correctamente");
             } else {
                 await addPendiente(formData);
+                toast.success("Mensaje creado correctamente");
             }
             setModalOpen(false);
             setEditingItem(null);
@@ -52,37 +57,111 @@ const PendingPage = () => {
             fetchPendientes();
         } catch (error) {
             console.error('Error saving:', error);
-            alert('Error al guardar. Revisa la consola.');
+            toast.error('Error al guardar. Revisa la consola.');
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!confirm('¿Estás seguro de eliminar este pendiente?')) return;
-        try {
-            await deletePendiente(id);
-            fetchPendientes();
-        } catch (error) {
-            console.error(error);
-        }
+    const handleDelete = (id) => {
+        toast("¿Eliminar este mensaje?", {
+            description: "Esta acción no se puede deshacer",
+            action: {
+                label: 'Eliminar',
+                onClick: async () => {
+                    try {
+                        await deletePendiente(id);
+                        toast.success('Mensaje eliminado');
+                        fetchPendientes();
+                    } catch (error) {
+                        toast.error('Error al eliminar');
+                    }
+                }
+            },
+            cancel: {
+                label: 'Cancelar',
+            },
+            duration: 5000,
+        });
     };
 
-    const handleNotify = async (id) => {
-        if (!confirm('¿Enviar notificación manual ahora?')) return;
-        try {
-            const res = await notifyPendiente(id);
-            alert(res.data.message);
-        } catch (error) {
-            alert(error.response?.data?.error || 'Error enviando notificación');
-        }
+    const handleNotify = (item) => {
+        toast.custom((t) => (
+            <div className="flex flex-col w-[400px] bg-slate-900 border border-slate-700 shadow-2xl rounded-2xl overflow-hidden font-sans">
+                {/* Header */}
+                <div className="bg-slate-800/50 p-4 border-b border-slate-700/50 flex items-center gap-3">
+                    <div className="p-2 bg-blue-500/10 text-blue-400 rounded-lg ring-1 ring-blue-500/20">
+                        <Send size={18} strokeWidth={2.5} />
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="font-bold text-white text-sm tracking-tight">Confirmar Envío</h3>
+                        <p className="text-slate-400 text-[11px] font-medium">Se enviará el recordatorio por correo.</p>
+                    </div>
+                    <button onClick={() => toast.dismiss(t)} className="text-slate-500 hover:text-white transition-colors p-1 hover:bg-slate-700/50 rounded-lg"><X size={16} /></button>
+                </div>
+
+                {/* Body */}
+                <div className="p-4 space-y-4 bg-slate-900/50">
+                    {/* Para */}
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1">Destinatario</label>
+                        <div className="flex items-center gap-2.5 p-2.5 bg-slate-950 rounded-xl border border-slate-800 group hover:border-slate-700 transition-colors">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                            <span className="text-sm text-slate-200 truncate font-medium">{item.email_notificacion || item.emailNotificacion}</span>
+                        </div>
+                    </div>
+
+                    {/* CC */}
+                    {item.cc_emails && (
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1">En Copia (CC)</label>
+                            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar p-2.5 bg-slate-950 rounded-xl border border-slate-800">
+                                {item.cc_emails.split(',').map((email, i) => (
+                                    <span key={i} className="inline-flex items-center text-[11px] bg-slate-800/80 text-slate-300 px-2.5 py-1 rounded-md border border-slate-700/50 select-all">
+                                        {email.trim()}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer / Actions */}
+                <div className="p-3 bg-slate-950 border-t border-slate-800 flex justify-end gap-3">
+                    <button
+                        onClick={() => toast.dismiss(t)}
+                        className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={async () => {
+                            toast.dismiss(t);
+                            const toastId = toast.loading("Enviando...");
+                            try {
+                                const res = await notifyPendiente(item.id);
+                                toast.success(res.data.message, { id: toastId });
+                            } catch (error) {
+                                toast.error(error.response?.data?.error || 'Error enviando notificación', { id: toastId });
+                            }
+                        }}
+                        className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 active:scale-95 rounded-lg shadow-lg shadow-blue-500/20 transition-all flex items-center gap-2"
+                    >
+                        <Send size={14} strokeWidth={2.5} />
+                        Enviar Correo
+                    </button>
+                </div>
+            </div>
+        ), { duration: Infinity, unstyled: true });
     };
 
     const openModal = (item = null) => {
         if (item) {
             setEditingItem(item);
             setFormData({ ...item });
+            setShowCC(!!item.cc_emails);
         } else {
             setEditingItem(null);
             resetForm();
+            setShowCC(false);
         }
         setModalOpen(true);
     };
@@ -97,6 +176,7 @@ const PendingPage = () => {
             observaciones: '',
             fecha_limite: '',
             email_notificacion: '',
+            cc_emails: '',
             dias_antes_notificacion: 3
         });
     };
@@ -108,6 +188,8 @@ const PendingPage = () => {
 
     return (
         <div className="space-y-6">
+            <Toaster position="top-center" theme="dark" richColors />
+
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
@@ -174,16 +256,19 @@ const PendingPage = () => {
                                     </div>
 
                                     {item.descripcion && (
-                                        <p className="text-slate-500 text-sm mt-2 line-clamp-2">{item.descripcion}</p>
+                                        <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50 mt-3 shadow-inner">
+                                            <p className="text-slate-300 text-xs font-mono whitespace-pre-wrap leading-relaxed">{item.descripcion}</p>
+                                        </div>
                                     )}
                                 </div>
 
                                 {/* Right Actions */}
                                 <div className="flex items-center gap-3 md:border-l md:border-slate-800 md:pl-6">
+                                    {/* Check both cases for email property to support legacy/new backend responses */}
                                     {(item.email_notificacion || item.emailNotificacion) ? (
                                         <div className="flex flex-col items-center gap-1">
                                             <button
-                                                onClick={() => handleNotify(item.id)}
+                                                onClick={() => handleNotify(item)}
                                                 className="flex items-center gap-2 px-4 py-2 bg-emerald-600/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-600 hover:text-white rounded-xl transition-all"
                                                 title={`Enviar correo a ${item.email_notificacion || item.emailNotificacion}`}
                                             >
@@ -278,13 +363,42 @@ const PendingPage = () => {
                                 <div className="md:col-span-2 border-t border-slate-800 my-2"></div>
 
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email Notificación</label>
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email Notificación</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowCC(!showCC)}
+                                            className="text-xs font-medium text-blue-500 hover:text-blue-400 transition-colors flex items-center gap-1"
+                                        >
+                                            {showCC ? 'Ocultar CC' : '+ Agregar CC'}
+                                        </button>
+                                    </div>
                                     <div className="relative">
                                         <Bell className="absolute left-3 top-1/2 -translate-y-1/2 text-yellow-500" size={18} />
                                         <input type="email" placeholder="correo@ejemplo.com" className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 focus:border-blue-500 outline-none"
                                             value={formData.email_notificacion} onChange={e => setFormData({ ...formData, email_notificacion: e.target.value })} />
                                     </div>
                                 </div>
+
+                                <AnimatePresence>
+                                    {showCC && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">CC Emails <span className="text-[10px] lowercase font-normal text-slate-600">(separar por comas)</span></label>
+                                                <div className="relative">
+                                                    <Bell className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                                                    <input type="text" placeholder="jefe@empresa.com, asistente@empresa.com" className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 focus:border-blue-500 outline-none"
+                                                        value={formData.cc_emails || ''} onChange={e => setFormData({ ...formData, cc_emails: e.target.value })} />
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
 
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Anticipación (Días)</label>

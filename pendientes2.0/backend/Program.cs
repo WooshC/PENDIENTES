@@ -4,6 +4,9 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Force listening on all interfaces to fix Cloudflare IPv6/IPv4 resolution issues
+builder.WebHost.UseUrls("http://*:5002");
+
 // Services Configuration
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -44,9 +47,16 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowFrontend");
 
+// Serve Static Files (React App)
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Handle SPA routing - fallback to index.html
+app.MapFallbackToFile("index.html");
 
 // Ensure DB is created
 using (var scope = app.Services.CreateScope())

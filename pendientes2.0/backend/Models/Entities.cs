@@ -22,6 +22,9 @@ public class Pendiente
     [Column("empresa")]
     public string? Empresa { get; set; }
 
+    [Column("cc_emails")]
+    public string? CCEmails { get; set; }
+
     [Column("estado")]
     public string Estado { get; set; } = "Pendiente";
 
@@ -43,21 +46,27 @@ public class Cliente
 {
     [Key]
     [Column("id")]
+    [System.Text.Json.Serialization.JsonPropertyName("id")]
     public int Id { get; set; }
 
     [Column("empresa")]
+    [System.Text.Json.Serialization.JsonPropertyName("empresa")]
     public required string Empresa { get; set; }
 
     [Column("observaciones")]
+    [System.Text.Json.Serialization.JsonPropertyName("observaciones")]
     public string? Observaciones { get; set; }
 
     [Column("check_estado")]
+    [System.Text.Json.Serialization.JsonPropertyName("check_estado")]
     public bool CheckEstado { get; set; }
 
     [Column("procedimiento")]
+    [System.Text.Json.Serialization.JsonPropertyName("procedimiento")]
     public string? Procedimiento { get; set; }
 
     [Column("estado")]
+    [System.Text.Json.Serialization.JsonPropertyName("estado")]
     public string? Estado { get; set; } = "Pendiente";
     
     // Navigation property not strictly needed unless we use includes, but good to have

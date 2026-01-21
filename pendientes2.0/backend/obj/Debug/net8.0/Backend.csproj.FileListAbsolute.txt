@@ -130,3 +130,4 @@ C:\Users\DETPC\Documents\GITHUB\PENDIENTES\pendientes2.0\backend\bin\Debug\net8.
 C:\Users\DETPC\Documents\GITHUB\PENDIENTES\pendientes2.0\backend\bin\Debug\net8.0\runtimes\win-arm64\native\e_sqlite3.dll
 C:\Users\DETPC\Documents\GITHUB\PENDIENTES\pendientes2.0\backend\bin\Debug\net8.0\runtimes\win-x64\native\e_sqlite3.dll
 C:\Users\DETPC\Documents\GITHUB\PENDIENTES\pendientes2.0\backend\bin\Debug\net8.0\runtimes\win-x86\native\e_sqlite3.dll
+C:\Users\DETPC\Documents\GITHUB\PENDIENTES\pendientes2.0\backend\bin\Debug\net8.0\Backend.staticwebassets.runtime.json
