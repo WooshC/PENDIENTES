@@ -15,7 +15,7 @@
 - Fechas límite y alertas automáticas
 - Búsqueda y filtrado avanzado
 
-### � Sistema de Notificaciones Mejorado
+### Sistema de Notificaciones Mejorado
 - **Correos HTML profesionales** con diseño moderno
 - **Parsing automático** de Observaciones y Tareas
 - **Secciones visuales** separadas con colores distintivos
@@ -23,7 +23,7 @@
 - **Badges de urgencia** con colores según tiempo restante
 - **Configuración de red** para acceso desde cualquier PC en la oficina
 
-### �👥 Gestión de Clientes
+### 👥 Gestión de Clientes
 - Directorio completo de empresas/clientes
 - Tareas asociadas a cada cliente
 - Estados de progreso (Sin Tareas, Pendiente, En Curso, Finalizado)
