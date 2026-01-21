@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+.DS_Store
+venv/
+.env
+
+# .NET Build artifacts
+**/bin/
+**/obj/
+*.dll
+*.exe
+*.pdb
+appsettings.local.json
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Node.js
+**/node_modules/
+**/dist/
+*.log
+package-lock.json
+
+# Build outputs (frontend compilado en backend)
+backend/wwwroot/assets/
+backend/wwwroot/index.html
+backend/wwwroot/vite.svg
+
+# IDE
+.vs/
+.vscode/
+*.suo
+*.user
