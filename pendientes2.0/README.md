@@ -340,6 +340,36 @@ const API_URL = import.meta.env.PROD ? '/api' : 'http://localhost:5002/api';
 2. Asegúrate de usar una "Contraseña de aplicación" de Gmail, no tu contraseña normal
 3. Verifica que la verificación en 2 pasos esté activa en tu cuenta de Gmail
 
+### Error: "The data is NULL at ordinal..." o 500 Internal Server Error
+
+Este error ocurre cuando hay datos NULL en campos requeridos de la base de datos.
+
+**Solución 1 - Resetear BD (si no tienes datos importantes):**
+```bash
+cd backend
+del pendientes.db
+del pendientes.db-shm
+del pendientes.db-wal
+dotnet run  # Recreará la BD limpia
+```
+
+**Solución 2 - Arreglar datos corruptos (si tienes datos importantes):**
+```sql
+-- Usa un cliente SQLite o: sqlite3 pendientes.db
+
+-- Arreglar actividades NULL
+UPDATE pendientes 
+SET actividad = 'Sin título' 
+WHERE actividad IS NULL;
+
+-- Arreglar fechas NULL
+UPDATE pendientes 
+SET fecha = date('now') 
+WHERE fecha IS NULL;
+```
+
+**Prevención**: El modelo ahora tiene valores por defecto para evitar este error en el futuro.
+
 ---
 
 ## 📈 Roadmap v2.1 (Próximamente)

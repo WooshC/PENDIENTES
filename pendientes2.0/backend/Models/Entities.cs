@@ -11,10 +11,10 @@ public class Pendiente
     public int Id { get; set; }
 
     [Column("fecha")]
-    public required string Fecha { get; set; } // Stored as string YYYY-MM-DD
+    public string Fecha { get; set; } = DateTime.Now.ToString("yyyy-MM-dd");
 
     [Column("actividad")]
-    public required string Actividad { get; set; }
+    public string Actividad { get; set; } = "Sin título";
 
     [Column("descripcion")]
     public string? Descripcion { get; set; }
