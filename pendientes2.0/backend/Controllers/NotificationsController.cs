@@ -40,6 +40,7 @@ public class NotificationsController : ControllerBase
             item.FechaLimite ?? "",
             item.Empresa ?? "",
             item.Descripcion ?? "Tareas pendientes.",
+            item.Observaciones ?? "",
             item.Estado ?? "Pendiente",
             "Requiere atención",
             baseUrl
@@ -95,6 +96,7 @@ public class NotificationsController : ControllerBase
                     $"{item.FechaLimite}",
                     item.Empresa ?? "",
                     item.Descripcion ?? "",
+                    item.Observaciones ?? "",
                     item.Estado ?? "Pendiente",
                     urgency,
                     baseUrl

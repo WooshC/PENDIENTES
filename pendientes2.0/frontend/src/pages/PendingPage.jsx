@@ -43,12 +43,41 @@ const PendingPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Parsing Logic
+        let submitData = { ...formData };
+        const desc = submitData.descripcion || '';
+        const lowerDesc = desc.toLowerCase();
+
+        if (lowerDesc.includes('observaciones:') || lowerDesc.includes('tareas:')) {
+            const obsRegex = /observaciones:([\s\S]*?)(?=tareas:|$)/i;
+            const taskRegex = /tareas:([\s\S]*)/i;
+
+            const obsMatch = desc.match(obsRegex);
+            const taskMatch = desc.match(taskRegex);
+
+            if (obsMatch) {
+                submitData.observaciones = obsMatch[1].trim();
+            }
+
+            if (taskMatch) {
+                submitData.descripcion = taskMatch[1].trim();
+            } else if (obsMatch) {
+                // If observations are present but no tasks section explicitly defined, 
+                // and the user used structure, we assume the rest is NOT tasks or tasks is empty.
+                // However, if there was text before "Observaciones:", it's lost? 
+                // Let's assume strict format: anything not in Tareas is not a task if Observaciones is used.
+                // But valid case: "Observaciones: ... \n (No tasks)".
+                submitData.descripcion = '';
+            }
+        }
+
         try {
             if (editingItem) {
-                await updatePendiente(editingItem.id, formData);
+                await updatePendiente(editingItem.id, submitData);
                 toast.success("Mensaje actualizado correctamente");
             } else {
-                await addPendiente(formData);
+                await addPendiente(submitData);
                 toast.success("Mensaje creado correctamente");
             }
             setModalOpen(false);

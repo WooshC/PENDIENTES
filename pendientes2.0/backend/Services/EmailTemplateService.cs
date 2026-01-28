@@ -2,16 +2,39 @@ namespace Backend.Services;
 
 public interface IEmailTemplateService
 {
-    string GeneratePendienteNotificationEmail(int pendienteId, string actividad, string fechaLimite, string empresa, string descripcion, string estado, string urgency, string baseUrl);
+    string GeneratePendienteNotificationEmail(int pendienteId, string actividad, string fechaLimite, string empresa, string descripcion, string observaciones, string estado, string urgency, string baseUrl);
 }
 
 public class EmailTemplateService : IEmailTemplateService
 {
-    public string GeneratePendienteNotificationEmail(int pendienteId, string actividad, string fechaLimite, string empresa, string descripcion, string estado, string urgency, string baseUrl)
+    public string GeneratePendienteNotificationEmail(int pendienteId, string actividad, string fechaLimite, string empresa, string descripcion, string observaciones, string estado, string urgency, string baseUrl)
     {
+        // Parsing logic adaptation:
+        // 1. If explicit 'observaciones' is provided, we use it. 
+        // 2. We parse 'descripcion' to see if it still contains markers (legacy/mixed data).
+        // 3. If 'descripcion' has no markers, we treat it as tasks.
+        
         var parsed = ParseDescripcion(descripcion);
-        var observacionesHtml = GenerateObservacionesSection(parsed.Observaciones);
-        var tareasHtml = GenerateTareasSection(parsed.Tareas);
+
+        // If we found parsed observations in description, we append/overwrite? 
+        // Let's prefer the redundant internal parsing if present, or combine.
+        // But usually, if key param is passed, we use it.
+        string finalObservaciones = !string.IsNullOrWhiteSpace(observaciones) ? observaciones : parsed.Observaciones;
+        
+        // If parsing found tasks, use them. 
+        // If NOT found matching "Tareas:" marker, but description has text, treat whole description as tasks.
+        List<string> finalTareas = parsed.Tareas;
+        if (!parsed.HasMarkers && !string.IsNullOrWhiteSpace(descripcion))
+        {
+             // Treat lines as tasks
+             finalTareas = descripcion.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                                     .Select(l => l.Trim().TrimStart('-', '•').Trim())
+                                     .Where(l => !string.IsNullOrWhiteSpace(l))
+                                     .ToList();
+        }
+
+        var observacionesHtml = GenerateObservacionesSection(finalObservaciones);
+        var tareasHtml = GenerateTareasSection(finalTareas);
         var completeButtonHtml = GenerateCompleteButton(pendienteId, baseUrl);
 
         return $@"
@@ -267,10 +290,10 @@ public class EmailTemplateService : IEmailTemplateService
 </html>";
     }
 
-    private (string Observaciones, List<string> Tareas) ParseDescripcion(string descripcion)
+    private (string Observaciones, List<string> Tareas, bool HasMarkers) ParseDescripcion(string descripcion)
     {
         if (string.IsNullOrWhiteSpace(descripcion))
-            return ("", new List<string>());
+            return ("", new List<string>(), false);
 
         var observaciones = "";
         var tareas = new List<string>();
@@ -278,6 +301,7 @@ public class EmailTemplateService : IEmailTemplateService
         var lines = descripcion.Split(new[] { '\n', '\r' }, StringSplitOptions.None);
         bool inObservaciones = false;
         bool inTareas = false;
+        bool hasMarkers = false;
 
         foreach (var line in lines)
         {
@@ -287,12 +311,14 @@ public class EmailTemplateService : IEmailTemplateService
             {
                 inObservaciones = true;
                 inTareas = false;
+                hasMarkers = true;
                 continue;
             }
             else if (trimmedLine.StartsWith("Tareas:", StringComparison.OrdinalIgnoreCase))
             {
                 inTareas = true;
                 inObservaciones = false;
+                hasMarkers = true;
                 continue;
             }
 
@@ -309,7 +335,7 @@ public class EmailTemplateService : IEmailTemplateService
             }
         }
 
-        return (observaciones, tareas);
+        return (observaciones, tareas, hasMarkers);
     }
 
     private string GenerateObservacionesSection(string observaciones)
