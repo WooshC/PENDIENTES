@@ -71,6 +71,16 @@ using (var scope = app.Services.CreateScope())
     // context.Database.EnsureCreated(); // Simple approach, creates DB if not exists
     // Migrations are better usually but for quick port:
     context.Database.EnsureCreated();
+    
+    // Manual schema update for existing databases (since we are not using Migrations yet)
+    context.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS ""ai_chat_history"" (
+            ""id"" INTEGER NOT NULL CONSTRAINT ""PK_ai_chat_history"" PRIMARY KEY AUTOINCREMENT,
+            ""role"" TEXT NOT NULL,
+            ""content"" TEXT NOT NULL,
+            ""created_at"" TEXT NOT NULL
+        );
+    ");
 }
 
 app.Run();

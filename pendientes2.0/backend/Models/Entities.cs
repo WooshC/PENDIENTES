@@ -114,3 +114,20 @@ public class SupportNote
     [Column("updated_at")]
     public string UpdatedAt { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 }
+
+[Table("ai_chat_history")]
+public class AiChatMessage
+{
+    [Key]
+    [Column("id")]
+    public int Id { get; set; }
+
+    [Column("role")]
+    public string Role { get; set; } = "user"; // "user" or "ai" or "error"
+
+    [Column("content")]
+    public string Content { get; set; } = "";
+
+    [Column("created_at")]
+    public string CreatedAt { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+}

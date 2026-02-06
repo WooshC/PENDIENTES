@@ -45,3 +45,4 @@ export const deleteSupportNote = (id) => api.delete(`/supportnotes/${id}`);
 
 // AI
 export const askAi = (query) => api.post('/ai/ask', { query });
+export const getChatHistory = () => api.get('/ai/history');

@@ -5,6 +5,9 @@
     "SmtpPort": "587",
     "SenderEmail": "tu-email@gmail.com",
     "SenderPassword": "tu-contraseña-de-aplicacion-aqui"
+  },
+  "AI": {
+    "ApiKey": "TU_API_KEY_DE_GROQ_O_GEMINI_AQUI"
   }
 }
 

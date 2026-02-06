@@ -20,7 +20,8 @@ import {
     addSupportNote,
     updateSupportNote,
     deleteSupportNote,
-    askAi
+    askAi,
+    getChatHistory
 } from '../api';
 
 const SupportNotesPage = () => {
@@ -31,17 +32,37 @@ const SupportNotesPage = () => {
     const [selectedNote, setSelectedNote] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
     const [aiQuery, setAiQuery] = useState('');
-    const [aiResponse, setAiResponse] = useState('');
+    const [chatHistory, setChatHistory] = useState([]);
     const [isAiThinking, setIsAiThinking] = useState(false);
+    const messagesEndRef = React.useRef(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [chatHistory, isAiThinking]);
+
+    useEffect(() => {
+        fetchNotes();
+        fetchChatHistory();
+    }, []);
+
+    const fetchChatHistory = async () => {
+        try {
+            const response = await getChatHistory();
+            setChatHistory(response.data);
+        } catch (error) {
+            console.error('Error fetching chat history:', error);
+        }
+    };
 
     const [noteForm, setNoteForm] = useState({
         title: '',
         content: ''
     });
 
-    useEffect(() => {
-        fetchNotes();
-    }, []);
 
     const fetchNotes = async () => {
         try {
@@ -133,17 +154,22 @@ const SupportNotesPage = () => {
     const handleAiAsk = async () => {
         if (!aiQuery.trim()) return;
 
+        const currentQuery = aiQuery;
+        setAiQuery(''); // Clear input immediately
+
+        // Add user message to history
+        setChatHistory(prev => [...prev, { role: 'user', content: currentQuery }]);
         setIsAiThinking(true);
-        setAiResponse('');
 
         try {
-            const response = await askAi(aiQuery);
-            setAiResponse(response.data.response);
+            const response = await askAi(currentQuery);
+            // Add AI response to history
+            setChatHistory(prev => [...prev, { role: 'ai', content: response.data.response }]);
         } catch (error) {
             console.error('Error asking AI:', error);
             const errorMsg = error.response?.data?.error || 'Error al conectar con el asistente de IA';
             toast.error(errorMsg);
-            setAiResponse(`Error: ${errorMsg}`);
+            setChatHistory(prev => [...prev, { role: 'error', content: `Error: ${errorMsg}` }]);
         } finally {
             setIsAiThinking(false);
         }
@@ -313,36 +339,62 @@ const SupportNotesPage = () => {
                         </div>
 
                         <div className="space-y-4">
-                            {aiResponse && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="bg-slate-950/50 border border-indigo-500/10 p-4 rounded-xl text-slate-300 text-sm leading-relaxed"
-                                >
-                                    {aiResponse}
-                                </motion.div>
-                            )}
+                            <div className="bg-slate-950/50 border border-indigo-500/10 p-4 rounded-xl max-h-[300px] overflow-y-auto space-y-4 custom-scrollbar">
+                                {chatHistory.length === 0 ? (
+                                    <p className="text-slate-500 text-sm text-center italic py-4">
+                                        Haz preguntas sobre tus notas de soporte para obtener ayuda instantánea.
+                                    </p>
+                                ) : (
+                                    chatHistory.map((msg, idx) => (
+                                        <motion.div
+                                            key={idx}
+                                            initial={{ opacity: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                                        >
+                                            <div
+                                                className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
+                                                    ? 'bg-indigo-600/20 text-indigo-100 rounded-tr-none'
+                                                    : msg.role === 'error'
+                                                        ? 'bg-red-500/10 text-red-300 border border-red-500/20'
+                                                        : 'bg-slate-800/50 text-slate-300 rounded-tl-none border border-slate-700/50'
+                                                    }`}
+                                            >
+                                                {msg.content}
+                                            </div>
+                                        </motion.div>
+                                    ))
+                                )}
+                                {isAiThinking && (
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        className="flex justify-start"
+                                    >
+                                        <div className="bg-slate-800/50 p-3 rounded-2xl rounded-tl-none border border-slate-700/50 flex items-center gap-2">
+                                            <div className="w-2 h-2 bg-indigo-400/50 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+                                            <div className="w-2 h-2 bg-indigo-400/50 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                                            <div className="w-2 h-2 bg-indigo-400/50 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                                <div ref={messagesEndRef} />
+                            </div>
 
                             <div className="flex gap-2">
-                                <div className="relative flex-1">
-                                    <input
-                                        type="text"
-                                        placeholder="Pregunta algo sobre tus notas..."
-                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all text-slate-200"
-                                        value={aiQuery}
-                                        onChange={(e) => setAiQuery(e.target.value)}
-                                        onKeyPress={(e) => e.key === 'Enter' && handleAiAsk()}
-                                    />
-                                    {isAiThinking && (
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                            <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                                        </div>
-                                    )}
-                                </div>
+                                <input
+                                    type="text"
+                                    placeholder="Pregunta algo sobre tus notas..."
+                                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all text-slate-200"
+                                    value={aiQuery}
+                                    onChange={(e) => setAiQuery(e.target.value)}
+                                    onKeyPress={(e) => e.key === 'Enter' && handleAiAsk()}
+                                    disabled={isAiThinking}
+                                />
                                 <button
                                     onClick={handleAiAsk}
                                     disabled={!aiQuery.trim() || isAiThinking}
-                                    className="p-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl transition-all shadow-lg shadow-indigo-500/20"
+                                    className="p-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl transition-all shadow-lg shadow-indigo-500/20 disabled:shadow-none"
                                 >
                                     <Send size={20} />
                                 </button>

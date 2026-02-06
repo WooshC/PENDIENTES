@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     public DbSet<Cliente> Clientes { get; set; }
     public DbSet<ClientTask> ClientTasks { get; set; }
     public DbSet<SupportNote> SupportNotes { get; set; }
+    public DbSet<AiChatMessage> AiChatHistory { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
