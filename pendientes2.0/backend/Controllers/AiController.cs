@@ -3,11 +3,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
 using System.Text.Json;
+using System.Net.Http.Headers;
 
 namespace Backend.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/ai")]
 public class AiController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -21,13 +22,21 @@ public class AiController : ControllerBase
         _httpClientFactory = httpClientFactory;
     }
 
+    [HttpGet("test")]
+    public IActionResult Test()
+    {
+        return Ok(new { message = "AI Controller (Groq Version) is working!" });
+    }
+
     [HttpPost("ask")]
     public async Task<IActionResult> AskAi([FromBody] JsonElement body)
     {
-        var apiKey = _configuration["Gemini:ApiKey"];
-        if (string.IsNullOrEmpty(apiKey) || apiKey == "YOUR_GEMINI_API_KEY_HERE")
+        // We reuse the same config key for simplicity
+        var apiKey = _configuration["AI:ApiKey"]; 
+        
+        if (string.IsNullOrEmpty(apiKey) || apiKey.StartsWith("YOUR_"))
         {
-            return BadRequest(new { error = "La API Key de Gemini no está configurada en el backend (appsettings.json)." });
+            return BadRequest(new { error = "Falta la API Key en appsettings.local.json" });
         }
 
         if (!body.TryGetProperty("query", out var queryProperty))
@@ -37,75 +46,67 @@ public class AiController : ControllerBase
 
         var query = queryProperty.GetString();
         
-        // 1. Get all support notes to provide context
+        // 1. Get Support Notes Context
         var notes = await _context.SupportNotes.ToListAsync();
         var contextText = new StringBuilder();
         foreach (var note in notes)
         {
-            contextText.AppendLine($"Fecha: {note.CreatedAt}");
-            contextText.AppendLine($"Título: {note.Title}");
-            contextText.AppendLine($"Contenido: {note.Content}");
-            contextText.AppendLine("---");
+            contextText.AppendLine($"- [{note.CreatedAt:yyyy-MM-dd}] {note.Title}: {note.Content}");
         }
 
-        // 2. Prepare Gemini Prompt
-        // We use Gemini 1.5 Flash which is free and has a large context window
-        var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={apiKey}";
+        // 2. Call Groq API (Llama 3 via OpenAI-compatible endpoint)
+        // Docs: https://console.groq.com/docs/openai
+        var url = "https://api.groq.com/openai/v1/chat/completions";
 
-        var prompt = new
+        var requestBody = new
         {
-            contents = new[]
+            model = "llama-3.3-70b-versatile", // Updated to Llama 3.3 (Current Stable)
+            messages = new[]
             {
-                new
-                {
-                    parts = new[]
-                    {
-                        new { text = $"Contexto de notas de soporte:\n{contextText}\n\nPregunta del usuario: {query}" }
-                    }
-                }
+                new { 
+                    role = "system", 
+                    content = "Eres un asistente de soporte técnico experto y útil. " +
+                              "Tienes acceso a las siguientes NOTAS DE SOPORTE del usuario:\n\n" +
+                              contextText.ToString() + 
+                              "\n\nTU TAREA: Responde a la pregunta del usuario basándote EXCLUSIVAMENTE en la información de estas notas. " +
+                              "Si la respuesta no está en las notas, di claramente que no tienes información al respecto. " +
+                              "No inventes datos. Sé conciso y directo."
+                },
+                new { role = "user", content = query }
             },
-            systemInstruction = new
-            {
-                parts = new[]
-                {
-                    new { text = "Eres un asistente experto en soporte técnico. Tu tarea es responder preguntas basándote ÚNICAMENTE en las notas de soporte proporcionadas en el contexto. Reglas críticas:\n1. Si la respuesta NO está en las notas, responde: 'No he encontrado información sobre ese tema en tus notas registradas'.\n2. NO inventes soluciones, comandos o procedimientos que no estén escritos en las notas.\n3. Sé directo y útil.\n4. Si hay varias notas similares, resume la información más reciente." }
-                }
-            },
-            generationConfig = new
-            {
-                temperature = 0.1, // Low temperature to reduce "imagination"
-                topK = 1,
-                topP = 1,
-                maxOutputTokens = 1000
-            }
+            temperature = 0.1, // Low creativity/hallucination
+            max_tokens = 1024
         };
 
         try
         {
             var client = _httpClientFactory.CreateClient();
-            var jsonPrompt = JsonSerializer.Serialize(prompt);
-            var content = new StringContent(jsonPrompt, Encoding.UTF8, "application/json");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+            var jsonContent = JsonSerializer.Serialize(requestBody);
+            var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
             var response = await client.PostAsync(url, content);
             var responseString = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
-                return StatusCode((int)response.StatusCode, new { error = "Error al conectar con Gemini", details = responseString });
+                Console.WriteLine($"Groq API Error: {response.StatusCode} - {responseString}");
+                return StatusCode((int)response.StatusCode, new { error = "Error conectando con Groq", details = responseString });
             }
 
             using var doc = JsonDocument.Parse(responseString);
             var aiResponse = doc.RootElement
-                .GetProperty("candidates")[0]
+                .GetProperty("choices")[0]
+                .GetProperty("message")
                 .GetProperty("content")
-                .GetProperty("parts")[0]
-                .GetProperty("text")
                 .GetString();
 
             return Ok(new { response = aiResponse });
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Exception: {ex.Message}");
             return StatusCode(500, new { error = "Error interno del servidor", details = ex.Message });
         }
     }
