@@ -39,6 +39,12 @@ public class Pendiente
 
     [Column("dias_antes_notificacion")]
     public int DiasAntesNotificacion { get; set; } = 3;
+
+    [Column("audio_file_path")]
+    public string? AudioFilePath { get; set; }
+
+    [Column("audio_transcription")]
+    public string? AudioTranscription { get; set; }
 }
 
 [Table("clientes")]
@@ -87,4 +93,24 @@ public class ClientTask
 
     [Column("created_at")]
     public string CreatedAt { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+}
+
+[Table("support_notes")]
+public class SupportNote
+{
+    [Key]
+    [Column("id")]
+    public int Id { get; set; }
+
+    [Column("title")]
+    public string Title { get; set; } = "Nota sin título";
+
+    [Column("content")]
+    public string Content { get; set; } = "";
+
+    [Column("created_at")]
+    public string CreatedAt { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+    [Column("updated_at")]
+    public string UpdatedAt { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 }

@@ -36,3 +36,12 @@ export const createPendingTasks = (clientId, data) => api.post(`/clients/${clien
 
 // Check Notifications (Manual Trigger for Admin)
 export const checkAllNotifications = () => api.post('/notifications/check-all');
+
+// Support Notes
+export const getSupportNotes = () => api.get('/supportnotes');
+export const addSupportNote = (data) => api.post('/supportnotes', data);
+export const updateSupportNote = (id, data) => api.put(`/supportnotes/${id}`, data);
+export const deleteSupportNote = (id) => api.delete(`/supportnotes/${id}`);
+
+// AI
+export const askAi = (query) => api.post('/ai/ask', { query });

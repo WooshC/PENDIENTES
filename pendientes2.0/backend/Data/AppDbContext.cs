@@ -10,6 +10,7 @@ public class AppDbContext : DbContext
     public DbSet<Pendiente> Pendientes { get; set; }
     public DbSet<Cliente> Clientes { get; set; }
     public DbSet<ClientTask> ClientTasks { get; set; }
+    public DbSet<SupportNote> SupportNotes { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

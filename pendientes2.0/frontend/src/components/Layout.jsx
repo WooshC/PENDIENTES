@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Bell, CheckCircle2 } from 'lucide-react';
+import { LayoutDashboard, Users, Bell, CheckCircle2, StickyNote } from 'lucide-react';
 
 const Layout = ({ children }) => {
     return (
@@ -19,6 +19,7 @@ const Layout = ({ children }) => {
                 <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
                     <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Pendientes" />
                     <NavItem to="/clientes" icon={<Users size={20} />} label="Clientes" />
+                    <NavItem to="/notas" icon={<StickyNote size={20} />} label="Notas Soporte" />
                 </nav>
 
                 <div className="p-4 border-t border-slate-800 text-xs text-slate-500 text-center">
@@ -30,6 +31,7 @@ const Layout = ({ children }) => {
             <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-950/90 backdrop-blur-md border-t border-slate-800 z-50 flex justify-around items-center p-3 pb-safe">
                 <MobileNavItem to="/" icon={<LayoutDashboard size={24} />} label="Pendientes" />
                 <MobileNavItem to="/clientes" icon={<Users size={24} />} label="Clientes" />
+                <MobileNavItem to="/notas" icon={<StickyNote size={24} />} label="Notas" />
             </div>
 
             {/* Main Content */}
