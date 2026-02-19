@@ -1,14 +1,10 @@
 import axios from 'axios';
 
-// Ensure this matches your backend URL.
-// Relative path for same-origin serving (production) or localhost for dev (if proxy setup, but let's stick to relative for the integrated build)
 const API_URL = import.meta.env.PROD ? '/api' : 'http://localhost:5002/api';
 
 export const api = axios.create({
     baseURL: API_URL,
-    headers: {
-        'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
 });
 
 // Pendientes
@@ -17,6 +13,14 @@ export const addPendiente = (data) => api.post('/pendientes', data);
 export const updatePendiente = (id, data) => api.put(`/pendientes/${id}`, data);
 export const deletePendiente = (id) => api.delete(`/pendientes/${id}`);
 export const notifyPendiente = (id) => api.post(`/notify/${id}`);
+
+// Pendiente Tasks
+export const getPendienteTasks = (pendienteId) => api.get(`/pendientes/${pendienteId}/tasks`);
+export const addPendienteTask = (pendienteId, description) => api.post(`/pendientes/${pendienteId}/tasks`, { description });
+export const addPendienteTasksBulk = (pendienteId, tasks) => api.post(`/pendientes/${pendienteId}/tasks/bulk`, { tasks });
+export const updatePendienteTask = (pendienteId, taskId, data) => api.put(`/pendientes/${pendienteId}/tasks/${taskId}`, data);
+export const deletePendienteTask = (pendienteId, taskId) => api.delete(`/pendientes/${pendienteId}/tasks/${taskId}`);
+export const completePendiente = (pendienteId) => api.post(`/pendientes/${pendienteId}/complete`);
 
 // Clientes
 export const getClientes = () => api.get('/clientes');
@@ -34,7 +38,7 @@ export const deleteTask = (taskId) => api.delete(`/tasks/${taskId}`);
 export const addGlobalTask = (data) => api.post('/tasks/global', data);
 export const createPendingTasks = (clientId, data) => api.post(`/clients/${clientId}/create-pending-tasks`, data);
 
-// Check Notifications (Manual Trigger for Admin)
+// Check Notifications
 export const checkAllNotifications = () => api.post('/notifications/check-all');
 
 // Support Notes

@@ -4,39 +4,30 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Load local configuration file (for credentials)
 builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true);
-
-// Force listening on all interfaces to fix Cloudflare IPv6/IPv4 resolution issues
 builder.WebHost.UseUrls("http://*:5002");
 
-// Services Configuration
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        // Use Snake Case Naming Policy to match Python/Frontend expectations
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.SnakeCaseLower;
     });
 
 builder.Services.AddHttpClient();
-
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// DB Context (SQLite)
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Email Service
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 
-// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.AllowAnyOrigin() // For dev, change to specific origin in prod
+        policy.AllowAnyOrigin()
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
@@ -44,7 +35,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure Pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -52,32 +42,33 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowFrontend");
-
-// Serve Static Files (React App)
 app.UseDefaultFiles();
 app.UseStaticFiles();
-
 app.UseAuthorization();
-
 app.MapControllers();
-
-// Handle SPA routing - fallback to index.html
 app.MapFallbackToFile("index.html");
 
-// Ensure DB is created
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    // context.Database.EnsureCreated(); // Simple approach, creates DB if not exists
-    // Migrations are better usually but for quick port:
     context.Database.EnsureCreated();
     
-    // Manual schema update for existing databases (since we are not using Migrations yet)
     context.Database.ExecuteSqlRaw(@"
         CREATE TABLE IF NOT EXISTS ""ai_chat_history"" (
             ""id"" INTEGER NOT NULL CONSTRAINT ""PK_ai_chat_history"" PRIMARY KEY AUTOINCREMENT,
             ""role"" TEXT NOT NULL,
             ""content"" TEXT NOT NULL,
+            ""created_at"" TEXT NOT NULL
+        );
+    ");
+
+    // New table for pendiente tasks
+    context.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS ""pendiente_tasks"" (
+            ""id"" INTEGER NOT NULL CONSTRAINT ""PK_pendiente_tasks"" PRIMARY KEY AUTOINCREMENT,
+            ""pendiente_id"" INTEGER NOT NULL,
+            ""description"" TEXT NOT NULL,
+            ""completed"" INTEGER NOT NULL DEFAULT 0,
             ""created_at"" TEXT NOT NULL
         );
     ");

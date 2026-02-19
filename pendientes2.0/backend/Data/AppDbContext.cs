@@ -8,6 +8,7 @@ public class AppDbContext : DbContext
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     public DbSet<Pendiente> Pendientes { get; set; }
+    public DbSet<PendienteTask> PendienteTasks { get; set; }
     public DbSet<Cliente> Clientes { get; set; }
     public DbSet<ClientTask> ClientTasks { get; set; }
     public DbSet<SupportNote> SupportNotes { get; set; }
@@ -17,10 +18,6 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Map booleans to integers for SQLite compatibility if needed, 
-        // though EF Core Sqlite provider usually handles simple bools as 0/1.
-        
-        // Ensure default values are respected if we generate the DB
         modelBuilder.Entity<Pendiente>()
             .Property(p => p.Estado)
             .HasDefaultValue("Pendiente");
@@ -31,10 +28,14 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<Cliente>()
             .Property(c => c.CheckEstado)
-            .HasConversion<int>(); // Force int storage 0/1
+            .HasConversion<int>();
 
         modelBuilder.Entity<ClientTask>()
             .Property(t => t.Completed)
-            .HasConversion<int>(); // Force int storage 0/1
+            .HasConversion<int>();
+
+        modelBuilder.Entity<PendienteTask>()
+            .Property(t => t.Completed)
+            .HasConversion<int>();
     }
 }

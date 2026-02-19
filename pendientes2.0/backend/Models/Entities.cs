@@ -32,7 +32,7 @@ public class Pendiente
     public string? Observaciones { get; set; }
 
     [Column("fecha_limite")]
-    public string? FechaLimite { get; set; } // Stored as string YYYY-MM-DD
+    public string? FechaLimite { get; set; }
 
     [Column("email_notificacion")]
     public string? EmailNotificacion { get; set; }
@@ -45,6 +45,26 @@ public class Pendiente
 
     [Column("audio_transcription")]
     public string? AudioTranscription { get; set; }
+}
+
+[Table("pendiente_tasks")]
+public class PendienteTask
+{
+    [Key]
+    [Column("id")]
+    public int Id { get; set; }
+
+    [Column("pendiente_id")]
+    public int PendienteId { get; set; }
+
+    [Column("description")]
+    public required string Description { get; set; }
+
+    [Column("completed")]
+    public bool Completed { get; set; }
+
+    [Column("created_at")]
+    public string CreatedAt { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 }
 
 [Table("clientes")]
@@ -70,9 +90,6 @@ public class Cliente
     [Column("estado")]
     [System.Text.Json.Serialization.JsonPropertyName("estado")]
     public string? Estado { get; set; } = "Pendiente";
-    
-    // Navigation property not strictly needed unless we use includes, but good to have
-    // public List<ClientTask> Tasks { get; set; } = new();
 }
 
 [Table("client_tasks")]
@@ -89,7 +106,7 @@ public class ClientTask
     public required string Description { get; set; }
 
     [Column("completed")]
-    public bool Completed { get; set; } // SQLite stores 0/1, EF handles bool automatically usually
+    public bool Completed { get; set; }
 
     [Column("created_at")]
     public string CreatedAt { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
@@ -123,7 +140,7 @@ public class AiChatMessage
     public int Id { get; set; }
 
     [Column("role")]
-    public string Role { get; set; } = "user"; // "user" or "ai" or "error"
+    public string Role { get; set; } = "user";
 
     [Column("content")]
     public string Content { get; set; } = "";

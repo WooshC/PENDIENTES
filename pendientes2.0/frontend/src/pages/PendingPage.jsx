@@ -1,17 +1,418 @@
-import React, { useEffect, useState } from 'react';
-import { getPendientes, addPendiente, updatePendiente, deletePendiente, notifyPendiente } from '../api';
-import { Plus, Search, Trash2, Edit2, Bell, X, Calendar as CalendarIcon, Send, MessageSquare, Clock, Building2 } from 'lucide-react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import {
+    getPendientes, addPendiente, updatePendiente, deletePendiente, notifyPendiente,
+    getPendienteTasks, addPendienteTask, addPendienteTasksBulk, updatePendienteTask, deletePendienteTask, completePendiente,
+    getClientes, addSupportNote, addGlobalTask
+} from '../api';
+import {
+    Plus, Search, Trash2, Edit2, Bell, X, Calendar as CalendarIcon, Send,
+    CheckSquare, Square, Building2, Clock, ChevronRight, Layers, Check,
+    FileText, Users, AlertCircle, BookOpen, Sparkles, ListTodo, Globe
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
 
-const PendingPage = () => {
-    const [pendientes, setPendientes] = useState([]);
+// ─── Retroalimentación Modal ──────────────────────────────────────────────────
+const RetroModal = ({ pendiente, tasks, onSave, onClose }) => {
+    const completedDate = new Date().toLocaleDateString('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric'
+    });
+    const defaultTitle = `Soporte completado: ${pendiente.actividad || pendiente.empresa || 'Pendiente'}`;
+    const defaultContent = [
+        `✅ Completado el ${completedDate}`,
+        '',
+        pendiente.observaciones ? `📋 Observaciones:\n${pendiente.observaciones}` : '',
+        tasks.length > 0 ? `\n📝 Tareas realizadas:\n${tasks.map(t => `- ${t.description}`).join('\n')}` : '',
+    ].filter(Boolean).join('\n').trim();
+
+    const [title, setTitle] = useState(defaultTitle);
+    const [content, setContent] = useState(defaultContent);
+
+    return (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+            <motion.div
+                initial={{ opacity: 0, scale: 0.92, y: 24 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.92, y: 24 }}
+                className="bg-slate-900 border border-indigo-500/30 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
+            >
+                <div className="bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border-b border-indigo-500/20 p-5 flex items-center gap-3">
+                    <div className="p-2 bg-indigo-500/20 rounded-xl">
+                        <Sparkles size={22} className="text-indigo-300" />
+                    </div>
+                    <div>
+                        <h2 className="font-bold text-white text-lg">Retroalimentación</h2>
+                        <p className="text-indigo-300/70 text-xs mt-0.5">Se guardará como nota de soporte</p>
+                    </div>
+                    <button onClick={onClose} className="ml-auto text-slate-400 hover:text-white transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
+                <div className="p-5 space-y-4">
+                    <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Título</label>
+                        <input
+                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                            value={title}
+                            onChange={e => setTitle(e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Descripción</label>
+                        <textarea
+                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm font-mono resize-none h-40"
+                            value={content}
+                            onChange={e => setContent(e.target.value)}
+                        />
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                        <button
+                            onClick={onClose}
+                            className="px-4 py-2.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors text-sm font-medium"
+                        >
+                            Omitir
+                        </button>
+                        <button
+                            onClick={() => onSave(title, content)}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 transition-all active:scale-95 text-sm"
+                        >
+                            <BookOpen size={16} />
+                            Guardar Nota de Soporte
+                        </button>
+                    </div>
+                </div>
+            </motion.div>
+        </div>
+    );
+};
+
+// ─── Global Task Exclusion Modal ──────────────────────────────────────────────
+const GlobalExcludeModal = ({ clientes, onConfirm, onClose, taskDesc, pendienteData }) => {
+    const [excluded, setExcluded] = useState(new Set());
+
+    const toggle = (id) => {
+        const s = new Set(excluded);
+        if (s.has(id)) s.delete(id); else s.add(id);
+        setExcluded(s);
+    };
+
+    return (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+            <motion.div
+                initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }}
+                className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+            >
+                <div className="bg-indigo-600/10 border-b border-slate-700 p-4 flex items-center gap-3">
+                    <Globe size={20} className="text-indigo-400" />
+                    <div>
+                        <h2 className="font-bold text-white">Tarea Global</h2>
+                        <p className="text-slate-400 text-xs mt-0.5">Elige qué clientes EXCLUIR</p>
+                    </div>
+                    <button onClick={onClose} className="ml-auto text-slate-400 hover:text-white"><X size={18} /></button>
+                </div>
+                <div className="p-4 max-h-72 overflow-y-auto space-y-1">
+                    {clientes.map(c => (
+                        <div key={c.id} onClick={() => toggle(c.id)}
+                            className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all ${excluded.has(c.id) ? 'opacity-40' : 'bg-slate-800/50'}`}>
+                            <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${excluded.has(c.id) ? 'border-slate-600 bg-slate-800' : 'bg-indigo-500 border-indigo-500'}`}>
+                                {!excluded.has(c.id) && <Check size={12} className="text-white" />}
+                            </div>
+                            <span className="text-sm font-medium text-slate-200">{c.empresa}</span>
+                        </div>
+                    ))}
+                </div>
+                <div className="p-4 border-t border-slate-700 flex gap-3">
+                    <button onClick={onClose} className="px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors">Cancelar</button>
+                    <button
+                        onClick={() => onConfirm(Array.from(excluded))}
+                        className="flex-1 py-2 text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-all active:scale-95"
+                    >
+                        Confirmar ({clientes.length - excluded.size} clientes)
+                    </button>
+                </div>
+            </motion.div>
+        </div>
+    );
+};
+
+// ─── Task List Panel ───────────────────────────────────────────────────────────
+const TaskPanel = ({ pendiente, onTasksChange, onComplete }) => {
+    const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [newDesc, setNewDesc] = useState('');
+    const [editingId, setEditingId] = useState(null);
+    const [editDesc, setEditDesc] = useState('');
+    const inputRef = useRef(null);
+
+    const fetchTasks = useCallback(async () => {
+        if (!pendiente) return;
+        setLoading(true);
+        try {
+            const res = await getPendienteTasks(pendiente.id);
+            setTasks(res.data);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    }, [pendiente?.id]);
+
+    useEffect(() => {
+        fetchTasks();
+    }, [fetchTasks]);
+
+    const handleAdd = async (e) => {
+        e.preventDefault();
+        const desc = newDesc.trim();
+        if (!desc) return;
+        // Support multiple lines = multiple tasks
+        const lines = desc.split('\n').map(l => l.trim()).filter(Boolean);
+        setNewDesc('');
+        try {
+            if (lines.length > 1) {
+                await addPendienteTasksBulk(pendiente.id, lines);
+            } else {
+                await addPendienteTask(pendiente.id, lines[0]);
+            }
+            await fetchTasks();
+            onTasksChange?.();
+        } catch (e) {
+            toast.error('Error al agregar tarea');
+        }
+    };
+
+    const toggleTask = async (task) => {
+        const newCompleted = !task.completed;
+        setTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed: newCompleted } : t));
+        try {
+            await updatePendienteTask(pendiente.id, task.id, { completed: newCompleted, description: task.description });
+            await fetchTasks();
+            onTasksChange?.();
+        } catch (e) {
+            toast.error('Error al actualizar');
+            fetchTasks();
+        }
+    };
+
+    const removeTask = async (task) => {
+        setTasks(prev => prev.filter(t => t.id !== task.id));
+        try {
+            await deletePendienteTask(pendiente.id, task.id);
+            onTasksChange?.();
+        } catch (e) {
+            toast.error('Error al eliminar');
+            fetchTasks();
+        }
+    };
+
+    const saveEdit = async (task) => {
+        if (!editDesc.trim()) return;
+        try {
+            await updatePendienteTask(pendiente.id, task.id, { completed: task.completed, description: editDesc.trim() });
+            setEditingId(null);
+            fetchTasks();
+        } catch (e) {
+            toast.error('Error al editar');
+        }
+    };
+
+    const allDone = tasks.length > 0 && tasks.every(t => t.completed);
+    const completedCount = tasks.filter(t => t.completed).length;
+
+    if (!pendiente) return (
+        <div className="flex-1 flex flex-col items-center justify-center text-slate-600 gap-3">
+            <ListTodo size={48} className="opacity-20" />
+            <p className="text-sm">Selecciona un pendiente para ver sus tareas</p>
+        </div>
+    );
+
+    return (
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            {/* Panel Header */}
+            <div className="p-5 border-b border-slate-800 flex-shrink-0">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex-1 min-w-0">
+                        <h2 className="text-lg font-bold text-white truncate">{pendiente.actividad}</h2>
+                        <div className="flex flex-wrap gap-3 mt-1">
+                            {pendiente.empresa && (
+                                <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                                    <Building2 size={12} />
+                                    {pendiente.empresa}
+                                </span>
+                            )}
+                            {pendiente.fecha_limite && (
+                                <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                                    <Clock size={12} />
+                                    Vence: {pendiente.fecha_limite}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                    <span className={`shrink-0 text-xs px-2.5 py-1 rounded-full border font-bold ${pendiente.estado === 'Finalizado' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                            pendiente.estado === 'En Curso' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                        }`}>{pendiente.estado}</span>
+                </div>
+
+                {/* Observaciones */}
+                {pendiente.observaciones && (
+                    <div className="bg-blue-500/5 border border-blue-500/15 rounded-xl p-3 text-xs text-slate-400 leading-relaxed whitespace-pre-wrap">
+                        <span className="font-bold text-blue-400 uppercase tracking-wider text-[10px]">Observaciones · </span>
+                        {pendiente.observaciones}
+                    </div>
+                )}
+            </div>
+
+            {/* Tasks progress */}
+            {tasks.length > 0 && (
+                <div className="px-5 pt-4 flex-shrink-0">
+                    <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                            Tareas · {completedCount}/{tasks.length}
+                        </span>
+                        {allDone && (
+                            <span className="text-xs font-bold text-emerald-400 animate-pulse">¡Todo listo!</span>
+                        )}
+                    </div>
+                    <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                        <motion.div
+                            className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full"
+                            animate={{ width: `${tasks.length > 0 ? (completedCount / tasks.length) * 100 : 0}%` }}
+                            transition={{ duration: 0.5 }}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Task List */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2 min-h-0">
+                {loading ? (
+                    <div className="flex items-center justify-center py-8 text-slate-600 text-sm">Cargando tareas...</div>
+                ) : tasks.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-slate-600 gap-2">
+                        <ListTodo size={32} className="opacity-30" />
+                        <p className="text-sm italic">Sin tareas registradas</p>
+                    </div>
+                ) : (
+                    <AnimatePresence initial={false}>
+                        {tasks.map(task => (
+                            <motion.div
+                                key={task.id}
+                                initial={{ opacity: 0, x: -12 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 12, height: 0 }}
+                                className={`group flex items-start gap-3 p-3 rounded-xl border transition-all ${task.completed
+                                        ? 'bg-emerald-500/5 border-emerald-500/10'
+                                        : 'bg-slate-800/40 border-slate-700/40 hover:border-slate-600/60'
+                                    }`}
+                            >
+                                <button
+                                    onClick={() => toggleTask(task)}
+                                    className={`mt-0.5 flex-shrink-0 transition-colors ${task.completed ? 'text-emerald-400' : 'text-slate-600 hover:text-blue-400'}`}
+                                >
+                                    {task.completed ? <CheckSquare size={18} /> : <Square size={18} />}
+                                </button>
+
+                                {editingId === task.id ? (
+                                    <div className="flex-1 flex gap-2">
+                                        <input
+                                            autoFocus
+                                            className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-2 py-1 text-sm text-white outline-none focus:border-blue-500"
+                                            value={editDesc}
+                                            onChange={e => setEditDesc(e.target.value)}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter') saveEdit(task);
+                                                if (e.key === 'Escape') setEditingId(null);
+                                            }}
+                                        />
+                                        <button onClick={() => saveEdit(task)} className="text-blue-400 hover:text-blue-300 text-xs font-bold px-2">✓</button>
+                                        <button onClick={() => setEditingId(null)} className="text-slate-500 hover:text-white text-xs px-1">✕</button>
+                                    </div>
+                                ) : (
+                                    <span className={`flex-1 text-sm leading-relaxed ${task.completed ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
+                                        {task.description}
+                                    </span>
+                                )}
+
+                                {editingId !== task.id && (
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                        <button
+                                            onClick={() => { setEditingId(task.id); setEditDesc(task.description); }}
+                                            className="p-1 text-slate-500 hover:text-blue-400 rounded-lg transition-colors"
+                                        >
+                                            <Edit2 size={13} />
+                                        </button>
+                                        <button
+                                            onClick={() => removeTask(task)}
+                                            className="p-1 text-slate-500 hover:text-red-400 rounded-lg transition-colors"
+                                        >
+                                            <Trash2 size={13} />
+                                        </button>
+                                    </div>
+                                )}
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+                )}
+            </div>
+
+            {/* Add Task Input */}
+            {pendiente.estado !== 'Finalizado' && (
+                <div className="px-5 pb-4 flex-shrink-0 border-t border-slate-800 pt-4">
+                    <form onSubmit={handleAdd} className="flex gap-2">
+                        <textarea
+                            ref={inputRef}
+                            className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 resize-none transition-all"
+                            placeholder="Nueva tarea (Enter = agregar, Shift+Enter = nueva línea para varias)"
+                            value={newDesc}
+                            onChange={e => setNewDesc(e.target.value)}
+                            rows={1}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleAdd(e);
+                                }
+                            }}
+                        />
+                        <button type="submit" className="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-all active:scale-95">
+                            <Plus size={18} />
+                        </button>
+                    </form>
+                </div>
+            )}
+
+            {/* Complete Button */}
+            {pendiente.estado !== 'Finalizado' && (
+                <div className="px-5 pb-5 flex-shrink-0">
+                    <button
+                        onClick={() => onComplete(tasks)}
+                        className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] text-sm"
+                    >
+                        <Check size={18} />
+                        Marcar Pendiente como Completado
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ─── Main PendingPage ──────────────────────────────────────────────────────────
+const PendingPage = () => {
+    const [searchParams] = useSearchParams();
+    const [pendientes, setPendientes] = useState([]);
+    const [clientes, setClientes] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedId, setSelectedId] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
     const [modalOpen, setModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [retroModal, setRetroModal] = useState(null); // { pendiente, tasks }
+    const [globalExcludeModal, setGlobalExcludeModal] = useState(null); // pendienteData
+    const [showCC, setShowCC] = useState(false);
 
-    const [formData, setFormData] = useState({
+    const emptyForm = {
         fecha: new Date().toISOString().split('T')[0],
         actividad: '',
         descripcion: '',
@@ -22,20 +423,30 @@ const PendingPage = () => {
         email_notificacion: '',
         cc_emails: '',
         dias_antes_notificacion: 3
-    });
-    const [showCC, setShowCC] = useState(false);
+    };
+    const [formData, setFormData] = useState(emptyForm);
+    const [taskLines, setTaskLines] = useState(''); // multiline tasks input in form
+
+    const selectedPendiente = pendientes.find(p => p.id === selectedId) || null;
 
     useEffect(() => {
-        fetchPendientes();
+        fetchAll();
+        // Check URL param for pre-selecting
+        const paramId = searchParams.get('pendiente');
+        if (paramId) setSelectedId(parseInt(paramId));
     }, []);
 
-    const fetchPendientes = async () => {
+    const fetchAll = async () => {
+        setLoading(true);
         try {
-            setLoading(true);
-            const res = await getPendientes();
-            setPendientes(res.data);
-        } catch (error) {
-            console.error('Error fetching pendientes:', error);
+            const [pRes, cRes] = await Promise.all([getPendientes(), getClientes()]);
+            setPendientes(pRes.data);
+            setClientes(cRes.data);
+            // Pre-select first if URL param
+            const paramId = searchParams.get('pendiente');
+            if (paramId) setSelectedId(parseInt(paramId));
+        } catch (e) {
+            toast.error('Error cargando datos');
         } finally {
             setLoading(false);
         }
@@ -43,69 +454,73 @@ const PendingPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
-        // Parsing Logic
-        let submitData = { ...formData };
-        const desc = submitData.descripcion || '';
-        const lowerDesc = desc.toLowerCase();
-
-        if (lowerDesc.includes('observaciones:') || lowerDesc.includes('tareas:')) {
-            const obsRegex = /observaciones:([\s\S]*?)(?=tareas:|$)/i;
-            const taskRegex = /tareas:([\s\S]*)/i;
-
-            const obsMatch = desc.match(obsRegex);
-            const taskMatch = desc.match(taskRegex);
-
-            if (obsMatch) {
-                submitData.observaciones = obsMatch[1].trim();
-            }
-
-            if (taskMatch) {
-                submitData.descripcion = taskMatch[1].trim();
-            } else if (obsMatch) {
-                // If observations are present but no tasks section explicitly defined, 
-                // and the user used structure, we assume the rest is NOT tasks or tasks is empty.
-                // However, if there was text before "Observaciones:", it's lost? 
-                // Let's assume strict format: anything not in Tareas is not a task if Observaciones is used.
-                // But valid case: "Observaciones: ... \n (No tasks)".
-                submitData.descripcion = '';
-            }
-        }
+        const toastId = toast.loading('Guardando...');
 
         try {
+            let res;
+            const payload = { ...formData };
+
             if (editingItem) {
-                await updatePendiente(editingItem.id, submitData);
-                toast.success("Mensaje actualizado correctamente");
+                await updatePendiente(editingItem.id, payload);
+                toast.success('Pendiente actualizado', { id: toastId });
+                res = { data: { id: editingItem.id } };
             } else {
-                await addPendiente(submitData);
-                toast.success("Mensaje creado correctamente");
+                res = await addPendiente(payload);
+                toast.success('Pendiente creado', { id: toastId });
             }
+
+            // Add tasks if any
+            const newId = res?.data?.id || editingItem?.id;
+            if (newId && taskLines.trim()) {
+                const lines = taskLines.split('\n').map(l => l.trim().replace(/^[-•]\s*/, '')).filter(Boolean);
+                if (lines.length > 0) {
+                    await addPendienteTasksBulk(newId, lines);
+                }
+            }
+
+            // If no empresa selected: ask about global
+            if (!payload.empresa && !editingItem) {
+                setGlobalExcludeModal({ pendienteId: newId, taskLines });
+            }
+
             setModalOpen(false);
             setEditingItem(null);
-            resetForm();
-            fetchPendientes();
+            setFormData(emptyForm);
+            setTaskLines('');
+            setShowCC(false);
+            await fetchAll();
+            if (newId) setSelectedId(newId);
         } catch (error) {
-            console.error('Error saving:', error);
-            toast.error('Error al guardar. Revisa la consola.');
+            toast.error('Error al guardar', { id: toastId });
         }
+    };
+
+    const handleGlobalConfirm = async (excludedIds) => {
+        const { pendienteId } = globalExcludeModal;
+        setGlobalExcludeModal(null);
+        // Add global task to all non-excluded clients
+        const currentTasks = (await getPendienteTasks(pendienteId)).data;
+        for (const task of currentTasks) {
+            try {
+                await addGlobalTask({ description: task.description, excludedClientIds: excludedIds });
+            } catch { }
+        }
+        toast.success('Tarea global asignada a clientes');
     };
 
     const handleDelete = (id) => {
         toast.custom((t) => (
-            <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-6 shadow-2xl w-[350px]">
-                <h3 className="font-bold text-white mb-2">¿Eliminar Mensaje?</h3>
-                <p className="text-slate-400 text-sm mb-4">Esta acción eliminará este pendiente permanentemente.</p>
+            <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-6 shadow-2xl w-[340px]">
+                <h3 className="font-bold text-white mb-2">¿Eliminar Pendiente?</h3>
+                <p className="text-slate-400 text-sm mb-4">Esta acción eliminará el pendiente y todas sus tareas permanentemente.</p>
                 <div className="flex justify-end gap-2">
                     <button onClick={() => toast.dismiss(t)} className="px-3 py-1.5 text-sm text-slate-400 hover:text-white">Cancelar</button>
                     <button onClick={async () => {
                         toast.dismiss(t);
-                        try {
-                            await deletePendiente(id);
-                            toast.success('Mensaje eliminado');
-                            fetchPendientes();
-                        } catch (error) {
-                            toast.error('Error al eliminar');
-                        }
+                        await deletePendiente(id);
+                        if (selectedId === id) setSelectedId(null);
+                        fetchAll();
+                        toast.success('Pendiente eliminado');
                     }} className="px-3 py-1.5 text-sm bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-lg transition-colors">Confirmar</button>
                 </div>
             </div>
@@ -114,337 +529,409 @@ const PendingPage = () => {
 
     const handleNotify = (item) => {
         toast.custom((t) => (
-            <div className="flex flex-col w-[400px] bg-slate-900 border border-slate-700 shadow-2xl rounded-2xl overflow-hidden font-sans">
-                {/* Header */}
+            <div className="flex flex-col w-[380px] bg-slate-900 border border-slate-700 shadow-2xl rounded-2xl overflow-hidden">
                 <div className="bg-slate-800/50 p-4 border-b border-slate-700/50 flex items-center gap-3">
                     <div className="p-2 bg-blue-500/10 text-blue-400 rounded-lg ring-1 ring-blue-500/20">
-                        <Send size={18} strokeWidth={2.5} />
+                        <Send size={16} />
                     </div>
                     <div className="flex-1">
-                        <h3 className="font-bold text-white text-sm tracking-tight">Confirmar Envío</h3>
-                        <p className="text-slate-400 text-[11px] font-medium">Se enviará el recordatorio por correo.</p>
+                        <h3 className="font-bold text-white text-sm">Confirmar Envío</h3>
+                        <p className="text-slate-400 text-[11px]">Recordatorio por correo</p>
                     </div>
-                    <button onClick={() => toast.dismiss(t)} className="text-slate-500 hover:text-white transition-colors p-1 hover:bg-slate-700/50 rounded-lg"><X size={16} /></button>
+                    <button onClick={() => toast.dismiss(t)} className="text-slate-500 hover:text-white p-1"><X size={16} /></button>
                 </div>
-
-                {/* Body */}
-                <div className="p-4 space-y-4 bg-slate-900/50">
-                    {/* Para */}
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1">Destinatario</label>
-                        <div className="flex items-center gap-2.5 p-2.5 bg-slate-950 rounded-xl border border-slate-800 group hover:border-slate-700 transition-colors">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-                            <span className="text-sm text-slate-200 truncate font-medium">{item.email_notificacion || item.emailNotificacion}</span>
-                        </div>
+                <div className="p-4 space-y-3">
+                    <div className="flex items-center gap-2.5 p-2.5 bg-slate-950 rounded-xl border border-slate-800">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                        <span className="text-sm text-slate-200 truncate">{item.email_notificacion || item.emailNotificacion}</span>
                     </div>
-
-                    {/* CC */}
                     {item.cc_emails && (
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1">En Copia (CC)</label>
-                            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar p-2.5 bg-slate-950 rounded-xl border border-slate-800">
-                                {item.cc_emails.split(',').map((email, i) => (
-                                    <span key={i} className="inline-flex items-center text-[11px] bg-slate-800/80 text-slate-300 px-2.5 py-1 rounded-md border border-slate-700/50 select-all">
-                                        {email.trim()}
-                                    </span>
-                                ))}
-                            </div>
+                        <div className="flex flex-wrap gap-1 p-2.5 bg-slate-950 rounded-xl border border-slate-800">
+                            {item.cc_emails.split(',').map((email, i) => (
+                                <span key={i} className="text-[11px] bg-slate-800 text-slate-300 px-2 py-1 rounded-md border border-slate-700">{email.trim()}</span>
+                            ))}
                         </div>
                     )}
                 </div>
-
-                {/* Footer / Actions */}
-                <div className="p-3 bg-slate-950 border-t border-slate-800 flex justify-end gap-3">
-                    <button
-                        onClick={() => toast.dismiss(t)}
-                        className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-                    >
-                        Cancelar
-                    </button>
-                    <button
-                        onClick={async () => {
-                            toast.dismiss(t);
-                            const toastId = toast.loading("Enviando...");
-                            try {
-                                const res = await notifyPendiente(item.id);
-                                toast.success(res.data.message, { id: toastId });
-                            } catch (error) {
-                                toast.error(error.response?.data?.error || 'Error enviando notificación', { id: toastId });
-                            }
-                        }}
-                        className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 active:scale-95 rounded-lg shadow-lg shadow-blue-500/20 transition-all flex items-center gap-2"
-                    >
-                        <Send size={14} strokeWidth={2.5} />
-                        Enviar Correo
+                <div className="p-3 bg-slate-950 border-t border-slate-800 flex justify-end gap-2">
+                    <button onClick={() => toast.dismiss(t)} className="px-3 py-2 text-xs text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">Cancelar</button>
+                    <button onClick={async () => {
+                        toast.dismiss(t);
+                        const id2 = toast.loading('Enviando...');
+                        try {
+                            const res = await notifyPendiente(item.id);
+                            toast.success(res.data.message, { id: id2 });
+                        } catch (error) {
+                            toast.error(error.response?.data?.error || 'Error', { id: id2 });
+                        }
+                    }} className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-lg flex items-center gap-2 transition-all">
+                        <Send size={14} /> Enviar
                     </button>
                 </div>
             </div>
         ), { duration: Infinity, unstyled: true });
     };
 
+    const handleComplete = async (tasks) => {
+        if (!selectedPendiente) return;
+        // Show retroalimentación modal
+        setRetroModal({ pendiente: selectedPendiente, tasks });
+    };
+
+    const handleRetroSave = async (title, content) => {
+        const toastId = toast.loading('Completando pendiente...');
+        try {
+            await completePendiente(selectedPendiente.id);
+            await addSupportNote({ title, content });
+            toast.success('Pendiente completado y nota guardada', { id: toastId });
+        } catch (e) {
+            toast.error('Error', { id: toastId });
+        } finally {
+            setRetroModal(null);
+            fetchAll();
+        }
+    };
+
+    const handleRetroClose = async () => {
+        const toastId = toast.loading('Completando pendiente...');
+        try {
+            await completePendiente(selectedPendiente.id);
+            toast.success('Pendiente completado', { id: toastId });
+        } catch (e) {
+            toast.error('Error', { id: toastId });
+        } finally {
+            setRetroModal(null);
+            fetchAll();
+        }
+    };
+
     const openModal = (item = null) => {
         if (item) {
             setEditingItem(item);
-            setFormData({ ...item });
+            setFormData({ ...emptyForm, ...item });
             setShowCC(!!item.cc_emails);
         } else {
             setEditingItem(null);
-            resetForm();
+            setFormData(emptyForm);
+            setTaskLines('');
             setShowCC(false);
         }
         setModalOpen(true);
     };
 
-    const resetForm = () => {
-        setFormData({
-            fecha: new Date().toISOString().split('T')[0],
-            actividad: '',
-            descripcion: '',
-            empresa: '',
-            estado: 'Pendiente',
-            observaciones: '',
-            fecha_limite: '',
-            email_notificacion: '',
-            cc_emails: '',
-            dias_antes_notificacion: 3
-        });
-    };
-
-    const filteredPendientes = pendientes.filter(item =>
-        item.actividad.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.empresa?.toLowerCase().includes(searchTerm.toLowerCase())
+    const filtered = pendientes.filter(p =>
+        (p.actividad || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.empresa || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const statusColor = (estado) => {
+        if (estado === 'Finalizado') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+        if (estado === 'En Curso') return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+        return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+    };
+
     return (
-        <div className="space-y-6 pb-24 md:pb-0">
+        <div className="flex flex-col h-[calc(100vh-2rem)] md:h-[calc(100vh-4rem)] gap-0 pb-20 md:pb-0">
             <Toaster position="top-center" theme="dark" richColors />
 
             {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 flex-shrink-0">
                 <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-2 md:gap-3">
-                        <MessageSquare className="text-blue-500" size={28} />
-                        <span className="hidden sm:inline">Centro de Mensajería</span>
-                        <span className="sm:hidden">Mensajes</span>
-                    </h1>
-                    <p className="text-slate-400 mt-1 text-xs md:text-sm ml-0 sm:ml-11">Gestión de alertas y recordatorios</p>
+                    <h1 className="text-2xl font-bold text-white">Pendientes</h1>
+                    <p className="text-slate-500 text-xs mt-0.5">Gestión de tareas y recordatorios</p>
                 </div>
                 <button
                     onClick={() => openModal()}
-                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-lg shadow-blue-500/25 transition-all active:scale-95 font-medium text-sm md:text-base"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/25 transition-all active:scale-95 font-medium text-sm"
                 >
-                    <Plus size={20} />
-                    Nuevo Mensaje
+                    <Plus size={18} />
+                    Nuevo Pendiente
                 </button>
             </div>
 
-            {/* Filter Bar */}
-            <div className="bg-slate-800/50 backdrop-blur-sm p-3 md:p-4 rounded-2xl border border-slate-700/50 flex items-center gap-3 shadow-inner">
-                <Search className="text-slate-500 flex-shrink-0" size={20} />
-                <input
-                    type="text"
-                    placeholder="Buscar en mensajes..."
-                    className="bg-transparent border-none outline-none text-slate-200 placeholder-slate-500 w-full text-sm md:text-base"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-            </div>
-
-            {/* Message List Layout using Grid instead of Table for messaging feel */}
-            <div className="grid grid-cols-1 gap-4">
-                {loading ? (
-                    <p className="text-center py-10 text-slate-500">Cargando mensajes...</p>
-                ) : filteredPendientes.length === 0 ? (
-                    <p className="text-center py-10 text-slate-500">No hay mensajes pendientes.</p>
-                ) : (
-                    filteredPendientes.map((item) => (
-                        <div key={item.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-5 hover:border-slate-700 transition-all shadow-sm hover:shadow-md group relative">
-                            <div className="flex flex-col gap-4">
-                                {/* Left Content */}
-                                <div className="flex-1 space-y-2">
-                                    <div className="flex items-center gap-2 md:gap-3 mb-1 flex-wrap">
-                                        <h3 className="text-base md:text-lg font-semibold text-white">{item.actividad}</h3>
-                                        <span className={`text-xs px-2 py-0.5 rounded-full border ${item.estado === 'Completado' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                            item.estado === 'En Curso' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
-                                                'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                                            }`}>{item.estado}</span>
-                                    </div>
-
-                                    <div className="flex flex-wrap gap-3 md:gap-4 text-xs md:text-sm text-slate-400">
-                                        {item.empresa && (
-                                            <div className="flex items-center gap-1.5">
-                                                <Building2 size={16} className="flex-shrink-0" />
-                                                <span className="truncate">{item.empresa}</span>
-                                            </div>
-                                        )}
-                                        {item.fechaLimite && (
-                                            <div className={`flex items-center gap-1.5 ${new Date(item.fechaLimite) < new Date() ? 'text-red-400 font-medium' : ''}`}>
-                                                <Clock size={16} className="flex-shrink-0" />
-                                                <span>Vence: {item.fechaLimite}</span>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {item.descripcion && (
-                                        <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50 mt-3 shadow-inner">
-                                            <p className="text-slate-300 text-xs font-mono whitespace-pre-wrap leading-relaxed">{item.descripcion}</p>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Right Actions */}
-                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:border-t-0 border-t border-slate-800 pt-3 sm:pt-0">
-                                    {/* Check both cases for email property to support legacy/new backend responses */}
-                                    {(item.email_notificacion || item.emailNotificacion) ? (
-                                        <div className="flex flex-col gap-2 flex-1">
-                                            <button
-                                                onClick={() => handleNotify(item)}
-                                                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-600 hover:text-white rounded-xl transition-all text-sm font-medium"
-                                                title={`Enviar correo a ${item.email_notificacion || item.emailNotificacion}`}
-                                            >
-                                                <Send size={18} />
-                                                <span>Enviar Ahora</span>
-                                            </button>
-                                            <span className="text-[10px] text-slate-600 truncate text-center sm:text-left">{item.email_notificacion || item.emailNotificacion}</span>
-                                        </div>
-                                    ) : (
-                                        <span className="text-xs text-slate-600 italic px-2 text-center sm:text-left">Sin correo</span>
-                                    )}
-
-                                    <div className="flex gap-2 justify-center sm:justify-start">
-                                        <button onClick={() => openModal(item)} className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"><Edit2 size={18} /></button>
-                                        <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"><Trash2 size={18} /></button>
-                                    </div>
-                                </div>
-                            </div>
+            {/* Split Panel */}
+            <div className="flex-1 flex gap-4 min-h-0 overflow-hidden">
+                {/* LEFT: Pendientes List */}
+                <div className="w-full md:w-80 lg:w-96 flex-shrink-0 flex flex-col bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden">
+                    {/* Search */}
+                    <div className="p-3 border-b border-slate-800 flex-shrink-0">
+                        <div className="flex items-center gap-2 bg-slate-800 rounded-xl px-3 py-2">
+                            <Search size={15} className="text-slate-500" />
+                            <input
+                                type="text"
+                                placeholder="Buscar..."
+                                className="bg-transparent outline-none text-sm text-slate-300 placeholder-slate-600 flex-1"
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                            />
                         </div>
-                    ))
-                )}
+                    </div>
+
+                    {/* List */}
+                    <div className="flex-1 overflow-y-auto">
+                        {loading ? (
+                            <div className="flex items-center justify-center py-12 text-slate-600 text-sm">Cargando...</div>
+                        ) : filtered.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-12 text-slate-600 gap-2">
+                                <AlertCircle size={32} className="opacity-20" />
+                                <p className="text-sm">Sin pendientes</p>
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-slate-800/50">
+                                {filtered.map(item => (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => setSelectedId(item.id)}
+                                        className={`w-full text-left p-4 transition-all hover:bg-slate-800/50 group relative ${selectedId === item.id ? 'bg-blue-600/10 border-l-2 border-blue-500' : 'border-l-2 border-transparent'}`}
+                                    >
+                                        {selectedId === item.id && (
+                                            <ChevronRight size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-400" />
+                                        )}
+                                        <div className="flex items-start justify-between gap-2 pr-4">
+                                            <span className={`text-sm font-semibold leading-snug ${selectedId === item.id ? 'text-white' : 'text-slate-300'}`}>
+                                                {item.actividad}
+                                            </span>
+                                            <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full border font-bold ${statusColor(item.estado)}`}>
+                                                {item.estado}
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 mt-1.5">
+                                            {item.empresa && (
+                                                <span className="flex items-center gap-1 text-[11px] text-slate-500">
+                                                    <Building2 size={10} />{item.empresa}
+                                                </span>
+                                            )}
+                                            {item.fecha_limite && (
+                                                <span className="flex items-center gap-1 text-[11px] text-slate-500">
+                                                    <Clock size={10} />{item.fecha_limite}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {/* Action buttons */}
+                                        <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                                            {(item.email_notificacion || item.emailNotificacion) && (
+                                                <button onClick={() => handleNotify(item)} className="p-1 text-slate-500 hover:text-emerald-400 rounded transition-colors" title="Notificar">
+                                                    <Send size={13} />
+                                                </button>
+                                            )}
+                                            <button onClick={() => openModal(item)} className="p-1 text-slate-500 hover:text-blue-400 rounded transition-colors">
+                                                <Edit2 size={13} />
+                                            </button>
+                                            <button onClick={() => handleDelete(item.id)} className="p-1 text-slate-500 hover:text-red-400 rounded transition-colors">
+                                                <Trash2 size={13} />
+                                            </button>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* RIGHT: Task Panel */}
+                <div className="hidden md:flex flex-1 flex-col bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden min-w-0">
+                    <TaskPanel
+                        pendiente={selectedPendiente}
+                        onTasksChange={fetchAll}
+                        onComplete={handleComplete}
+                    />
+                </div>
             </div>
 
-            {/* Modal */}
+            {/* Mobile Task View - shown below list when selected */}
+            {selectedId && (
+                <div className="md:hidden mt-3 flex-shrink-0 bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden max-h-[50vh] flex flex-col">
+                    <TaskPanel
+                        pendiente={selectedPendiente}
+                        onTasksChange={fetchAll}
+                        onComplete={handleComplete}
+                    />
+                </div>
+            )}
+
+            {/* New/Edit Modal */}
             <AnimatePresence>
                 {modalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+                    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-10 bg-black/70 backdrop-blur-sm overflow-y-auto">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="bg-slate-900 border border-slate-700 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+                            className="bg-slate-900 border border-slate-700 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden mb-8"
                         >
-                            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-950">
-                                <h2 className="text-xl font-bold flex items-center gap-2">
-                                    {editingItem ? <Edit2 size={20} className="text-blue-500" /> : <Plus size={20} className="text-blue-500" />}
-                                    {editingItem ? 'Editar Mensaje' : 'Nuevo Mensaje'}
+                            <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950">
+                                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                    {editingItem ? <Edit2 size={18} className="text-blue-400" /> : <Plus size={18} className="text-blue-400" />}
+                                    {editingItem ? 'Editar Pendiente' : 'Nuevo Pendiente'}
                                 </h2>
-                                <button onClick={() => setModalOpen(false)} className="text-slate-400 hover:text-white transition-colors"><X size={24} /></button>
+                                <button onClick={() => setModalOpen(false)} className="text-slate-400 hover:text-white transition-colors"><X size={22} /></button>
                             </div>
 
-                            <form onSubmit={handleSubmit} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5 overflow-y-auto custom-scrollbar">
-
-                                <div className="space-y-2 md:col-span-2">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Asunto / Actividad</label>
-                                    <input autoFocus required className="w-full bg-slate-800 border-none rounded-xl px-4 py-3 text-lg font-medium text-white focus:ring-2 focus:ring-blue-500/50 outline-none placeholder-slate-600"
-                                        placeholder="Ej: Renovar Dominio"
-                                        value={formData.actividad} onChange={e => setFormData({ ...formData, actividad: e.target.value })} />
+                            <form onSubmit={handleSubmit} className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Actividad */}
+                                <div className="md:col-span-2 space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Actividad / Asunto</label>
+                                    <input
+                                        autoFocus required
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                                        placeholder="Ej: Renovar dominio cliente X"
+                                        value={formData.actividad}
+                                        onChange={e => setFormData({ ...formData, actividad: e.target.value })}
+                                    />
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Empresa</label>
-                                    <div className="relative">
-                                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                                        <input className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 focus:border-blue-500 outline-none transition-colors"
-                                            placeholder="Nombre de la empresa"
-                                            value={formData.empresa} onChange={e => setFormData({ ...formData, empresa: e.target.value })} />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Estado</label>
-                                    <select className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 focus:border-blue-500 outline-none appearance-none"
-                                        value={formData.estado} onChange={e => setFormData({ ...formData, estado: e.target.value })}>
-                                        <option value="Pendiente">🟡 Pendiente</option>
-                                        <option value="En Curso">🔵 En Curso</option>
-                                        <option value="Completado">🟢 Completado</option>
+                                {/* Empresa - from clientes */}
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                                        <Building2 size={12} /> Empresa
+                                        <span className="text-slate-600 font-normal normal-case">(opcional - vacío = global)</span>
+                                    </label>
+                                    <select
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:border-blue-500 outline-none transition-all appearance-none"
+                                        value={formData.empresa}
+                                        onChange={e => setFormData({ ...formData, empresa: e.target.value })}
+                                    >
+                                        <option value="">🌐 Sin empresa (global)</option>
+                                        {clientes.map(c => (
+                                            <option key={c.id} value={c.empresa}>{c.empresa}</option>
+                                        ))}
                                     </select>
                                 </div>
 
-                                <div className="space-y-2 md:col-span-2">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mensaje / Descripción</label>
-                                    <textarea className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 focus:border-blue-500 outline-none h-24 resize-none"
-                                        placeholder="Detalles sobre este recordatorio..."
-                                        value={formData.descripcion} onChange={e => setFormData({ ...formData, descripcion: e.target.value })} />
+                                {/* Estado */}
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Estado</label>
+                                    <select
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:border-blue-500 outline-none appearance-none"
+                                        value={formData.estado}
+                                        onChange={e => setFormData({ ...formData, estado: e.target.value })}
+                                    >
+                                        <option value="Pendiente">🟡 Pendiente</option>
+                                        <option value="En Curso">🔵 En Curso</option>
+                                        <option value="Finalizado">🟢 Finalizado</option>
+                                    </select>
                                 </div>
 
-                                {/* Modern Date Picker Trigger */}
-                                <div className="space-y-2">
+                                {/* Observaciones */}
+                                <div className="md:col-span-2 space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Observaciones</label>
+                                    <textarea
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 focus:border-blue-500 outline-none h-20 resize-none transition-all placeholder-slate-600"
+                                        placeholder="Contexto, detalles adicionales..."
+                                        value={formData.observaciones || ''}
+                                        onChange={e => setFormData({ ...formData, observaciones: e.target.value })}
+                                    />
+                                </div>
+
+                                {/* Tasks */}
+                                {!editingItem && (
+                                    <div className="md:col-span-2 space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                                            <ListTodo size={12} /> Tareas iniciales
+                                            <span className="text-slate-600 font-normal normal-case">(una por línea)</span>
+                                        </label>
+                                        <textarea
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 focus:border-blue-500 outline-none h-24 resize-none font-mono text-sm placeholder-slate-600 transition-all"
+                                            placeholder={"- Instalar actualizaciones\n- Revisar backups\n- Verificar SSL"}
+                                            value={taskLines}
+                                            onChange={e => setTaskLines(e.target.value)}
+                                        />
+                                    </div>
+                                )}
+
+                                <div className="md:col-span-2 border-t border-slate-800 my-1"></div>
+
+                                {/* Fecha Límite */}
+                                <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha Límite</label>
-                                    <div className="relative cursor-pointer group">
-                                        <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 group-hover:text-blue-400 transition-colors" size={18} />
+                                    <div className="relative">
+                                        <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500" size={16} />
                                         <input
                                             type="date"
-                                            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 focus:border-blue-500 outline-none cursor-pointer [color-scheme:dark]"
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-4 py-2.5 focus:border-blue-500 outline-none [color-scheme:dark]"
                                             value={formData.fecha_limite}
                                             onChange={e => setFormData({ ...formData, fecha_limite: e.target.value })}
                                         />
                                     </div>
                                 </div>
 
-                                <div className="md:col-span-2 border-t border-slate-800 my-2"></div>
+                                {/* Days before */}
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Días Anticipación</label>
+                                    <input
+                                        type="number" min="0"
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 focus:border-blue-500 outline-none text-slate-200"
+                                        value={formData.dias_antes_notificacion}
+                                        onChange={e => setFormData({ ...formData, dias_antes_notificacion: parseInt(e.target.value) })}
+                                    />
+                                </div>
 
-                                <div className="space-y-2">
+                                {/* Email */}
+                                <div className="space-y-1.5">
                                     <div className="flex justify-between items-center">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email Notificación</label>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowCC(!showCC)}
-                                            className="text-xs font-medium text-blue-500 hover:text-blue-400 transition-colors flex items-center gap-1"
-                                        >
-                                            {showCC ? 'Ocultar CC' : '+ Agregar CC'}
+                                        <button type="button" onClick={() => setShowCC(!showCC)} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                                            {showCC ? 'Ocultar CC' : '+ CC'}
                                         </button>
                                     </div>
                                     <div className="relative">
-                                        <Bell className="absolute left-3 top-1/2 -translate-y-1/2 text-yellow-500" size={18} />
-                                        <input type="email" placeholder="correo@ejemplo.com" className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 focus:border-blue-500 outline-none"
-                                            value={formData.email_notificacion} onChange={e => setFormData({ ...formData, email_notificacion: e.target.value })} />
+                                        <Bell className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" size={15} />
+                                        <input
+                                            type="email"
+                                            placeholder="correo@ejemplo.com"
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-4 py-2.5 focus:border-blue-500 outline-none text-slate-200"
+                                            value={formData.email_notificacion}
+                                            onChange={e => setFormData({ ...formData, email_notificacion: e.target.value })}
+                                        />
                                     </div>
                                 </div>
 
-                                <AnimatePresence>
-                                    {showCC && (
-                                        <motion.div
-                                            initial={{ opacity: 0, height: 0 }}
-                                            animate={{ opacity: 1, height: 'auto' }}
-                                            exit={{ opacity: 0, height: 0 }}
-                                            className="overflow-hidden"
-                                        >
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">CC Emails <span className="text-[10px] lowercase font-normal text-slate-600">(separar por comas)</span></label>
-                                                <div className="relative">
-                                                    <Bell className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                                                    <input type="text" placeholder="jefe@empresa.com, asistente@empresa.com" className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 focus:border-blue-500 outline-none"
-                                                        value={formData.cc_emails || ''} onChange={e => setFormData({ ...formData, cc_emails: e.target.value })} />
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
+                                {showCC && (
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">CC <span className="font-normal lowercase text-slate-600">(separar por comas)</span></label>
+                                        <input
+                                            type="text"
+                                            placeholder="cc1@mail.com, cc2@mail.com"
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 focus:border-blue-500 outline-none text-slate-200"
+                                            value={formData.cc_emails || ''}
+                                            onChange={e => setFormData({ ...formData, cc_emails: e.target.value })}
+                                        />
+                                    </div>
+                                )}
 
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Anticipación (Días)</label>
-                                    <input type="number" min="0" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 focus:border-blue-500 outline-none"
-                                        value={formData.dias_antes_notificacion} onChange={e => setFormData({ ...formData, dias_antes_notificacion: parseInt(e.target.value) })} />
-                                </div>
-
-                                <div className="md:col-span-2 pt-6 flex justify-end gap-3 mt-2">
-                                    <button type="button" onClick={() => setModalOpen(false)} className="px-5 py-2.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors font-medium">Cancelar</button>
-                                    <button type="submit" className="px-8 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 transform active:scale-95 transition-all">
-                                        {editingItem ? 'Guardar Cambios' : 'Crear Mensaje'}
+                                <div className="md:col-span-2 flex justify-end gap-3 pt-2">
+                                    <button type="button" onClick={() => setModalOpen(false)} className="px-5 py-2.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors font-medium text-sm">Cancelar</button>
+                                    <button type="submit" className="px-7 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-sm">
+                                        {editingItem ? 'Guardar Cambios' : 'Crear Pendiente'}
                                     </button>
                                 </div>
                             </form>
                         </motion.div>
                     </div>
+                )}
+            </AnimatePresence>
+
+            {/* Retroalimentación Modal */}
+            <AnimatePresence>
+                {retroModal && (
+                    <RetroModal
+                        pendiente={retroModal.pendiente}
+                        tasks={retroModal.tasks}
+                        onSave={handleRetroSave}
+                        onClose={handleRetroClose}
+                    />
+                )}
+            </AnimatePresence>
+
+            {/* Global Exclude Modal */}
+            <AnimatePresence>
+                {globalExcludeModal && (
+                    <GlobalExcludeModal
+                        clientes={clientes}
+                        onConfirm={handleGlobalConfirm}
+                        onClose={() => setGlobalExcludeModal(null)}
+                        pendienteData={globalExcludeModal}
+                    />
                 )}
             </AnimatePresence>
         </div>
