@@ -1,17 +1,17 @@
 namespace Backend.Services;
 
+using Backend.Models;
+
 public interface IEmailTemplateService
 {
-    string GeneratePendienteNotificationEmail(int pendienteId, string actividad, string fechaLimite, string empresa, string descripcion, string observaciones, string estado, string urgency, string baseUrl);
+    string GeneratePendienteNotificationEmail(int pendienteId, string actividad, string fechaLimite, string empresa, string descripcion, string observaciones, string estado, string urgency, string baseUrl, List<PendienteTask>? tasks = null);
 }
 
 public class EmailTemplateService : IEmailTemplateService
 {
-    public string GeneratePendienteNotificationEmail(int pendienteId, string actividad, string fechaLimite, string empresa, string descripcion, string observaciones, string estado, string urgency, string baseUrl)
+    public string GeneratePendienteNotificationEmail(int pendienteId, string actividad, string fechaLimite, string empresa, string descripcion, string observaciones, string estado, string urgency, string baseUrl, List<PendienteTask>? tasks = null)
     {
-        var tareas = ParseTareas(descripcion);
-        var observacionesHtml = GenerateObservacionesSection(observaciones);
-        var tareasHtml = GenerateTareasSection(tareas);
+        var tareasHtml = GenerateTareasSection(descripcion, tasks);
         var buttonHtml = GenerateViewButton(pendienteId, baseUrl);
 
         return $@"
@@ -44,7 +44,9 @@ public class EmailTemplateService : IEmailTemplateService
         .tareas-box {{ background-color: #dcfce7; border-left-color: #16a34a; }}
         .tareas-title {{ font-size: 14px; font-weight: 700; color: #15803d; margin: 0 0 10px 0; }}
         .task-item {{ margin-bottom: 8px; font-size: 14px; color: #334155; padding-left: 20px; position: relative; }}
-        .task-item:before {{ content: '•'; position: absolute; left: 0; color: #16a34a; font-weight: bold; font-size: 18px; }}
+        .task-item:before {{ content: ''; display: none; }}
+        .task-item-bullet {{ padding-left: 20px; position: relative; }}
+        .task-item-bullet:before {{ content: '•'; position: absolute; left: 0; color: #16a34a; font-weight: bold; font-size: 18px; display: block; }}
         .view-button {{ display: inline-block; margin-top: 20px; padding: 14px 28px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 15px; text-align: center; }}
         .cta-text {{ margin-top: 20px; padding: 15px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px; font-size: 14px; color: #856404; }}
         .footer {{ background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 14px; color: #666; }}
@@ -97,22 +99,39 @@ public class EmailTemplateService : IEmailTemplateService
             </div>";
     }
 
-    private string GenerateTareasSection(List<string> tareas)
+    private string GenerateTareasSection(string descripcion, List<PendienteTask>? tasks)
     {
-        if (tareas == null || !tareas.Any()) return "";
-        var tareasHtml = string.Join("", tareas.Select(t =>
-            $"<div class='task-item'>{System.Net.WebUtility.HtmlEncode(t)}</div>"));
+        string itemsHtml = "";
+
+        if (tasks != null && tasks.Any())
+        {
+            var items = tasks.Select(t =>
+            {
+                var icon = t.Completed ? "✅" : "⬜"; // Checked vs Empty Square
+                var style = t.Completed ? "text-decoration: line-through; color: #888;" : "color: #334155;";
+                return $"<div class='task-item' style='{style}'><span style='margin-right:8px;'>{icon}</span>{System.Net.WebUtility.HtmlEncode(t.Description)}</div>";
+            });
+            itemsHtml = string.Join("", items);
+        }
+        else
+        {
+            var listaTareas = ParseTareas(descripcion);
+            if (!listaTareas.Any()) return "";
+            itemsHtml = string.Join("", listaTareas.Select(t =>
+                $"<div class='task-item task-item-bullet'>{System.Net.WebUtility.HtmlEncode(t)}</div>"));
+        }
+
         return $@"
             <div class='section-box tareas-box'>
                 <div class='tareas-title'>✅ TAREAS PENDIENTES</div>
-                {tareasHtml}
+                {itemsHtml}
             </div>";
     }
 
     private string GenerateViewButton(int pendienteId, string baseUrl)
     {
         // Link to frontend - user manages tasks in the app
-        var frontendUrl = baseUrl.Replace(":5002", "").TrimEnd('/');
+        var frontendUrl = baseUrl.TrimEnd('/');
         var viewUrl = $"{frontendUrl}/?pendiente={pendienteId}";
         return $@"
             <div style='text-align: center; margin-top: 20px;'>

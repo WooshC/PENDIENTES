@@ -3,6 +3,7 @@ using Backend.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
+using Backend.Models;
 
 namespace Backend.Controllers;
 
@@ -34,6 +35,9 @@ public class NotificationsController : ControllerBase
 
         var baseUrl = _configuration["BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
         var subject = $"🔔 Recordatorio: '{item.Actividad}'";
+
+        var tasks = await _context.PendienteTasks.Where(t => t.PendienteId == id).ToListAsync();
+
         var body = _emailTemplateService.GeneratePendienteNotificationEmail(
             item.Id,
             item.Actividad ?? "- sueldo básico",
@@ -43,7 +47,8 @@ public class NotificationsController : ControllerBase
             item.Observaciones ?? "",
             item.Estado ?? "Pendiente",
             "Requiere atención",
-            baseUrl
+            baseUrl,
+            tasks
         );
 
         var success = await _emailService.SendEmailAsync(item.EmailNotificacion, subject, body, item.CCEmails);
@@ -90,6 +95,9 @@ public class NotificationsController : ControllerBase
 
                 var baseUrl = _configuration["BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
                 var subject = $"🔔 Recordatorio: '{item.Actividad}' vence pronto";
+
+                var tasks = await _context.PendienteTasks.Where(t => t.PendienteId == item.Id).ToListAsync();
+
                 var body = _emailTemplateService.GeneratePendienteNotificationEmail(
                     item.Id,
                     item.Actividad ?? "",
@@ -99,7 +107,8 @@ public class NotificationsController : ControllerBase
                     item.Observaciones ?? "",
                     item.Estado ?? "Pendiente",
                     urgency,
-                    baseUrl
+                    baseUrl,
+                    tasks
                 );
 
                 bool sent = await _emailService.SendEmailAsync(item.EmailNotificacion, subject, body, item.CCEmails);
