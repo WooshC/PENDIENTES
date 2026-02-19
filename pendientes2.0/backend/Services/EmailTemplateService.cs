@@ -12,6 +12,7 @@ public class EmailTemplateService : IEmailTemplateService
     public string GeneratePendienteNotificationEmail(int pendienteId, string actividad, string fechaLimite, string empresa, string descripcion, string observaciones, string estado, string urgency, string baseUrl, List<PendienteTask>? tasks = null)
     {
         var tareasHtml = GenerateTareasSection(descripcion, tasks);
+        var observacionesHtml = GenerateObservacionesSection(observaciones);
         var buttonHtml = GenerateViewButton(pendienteId, baseUrl);
 
         return $@"
