@@ -24,3 +24,4 @@ appsettings.local.json
 .vscode/
 *.suo
 *.user
+**/Backups/
