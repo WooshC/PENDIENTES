@@ -1,1 +1,24 @@
 @import "tailwindcss";
+
+@layer utilities {
+    /* Safe area bottom padding for mobile notch/home indicator */
+    .pb-safe {
+        padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    }
+
+    /* Thin scrollbar for panels and chat */
+    .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: rgb(51 65 85) transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: rgb(51 65 85);
+        border-radius: 20px;
+    }
+}

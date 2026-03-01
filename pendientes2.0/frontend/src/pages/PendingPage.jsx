@@ -6,12 +6,13 @@ import {
     getClientes, addSupportNote, addGlobalTask
 } from '../api';
 import {
-    Plus, Search, Trash2, Edit2, Bell, X, Calendar as CalendarIcon, Send,
-    CheckSquare, Square, Building2, Clock, ChevronRight, Layers, Check,
-    FileText, Users, AlertCircle, BookOpen, Sparkles, ListTodo, Globe
+    Plus, Trash2, Edit2, Bell, X, Calendar as CalendarIcon, Send,
+    CheckSquare, Square, Building2, Clock, ChevronRight, Check,
+    BookOpen, Sparkles, ListTodo, Globe, AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
+import { Badge, SearchInput } from '../components/ui';
 
 // ─── Retroalimentación Modal ──────────────────────────────────────────────────
 const RetroModal = ({ pendiente, tasks, onSave, onClose }) => {
@@ -38,14 +39,14 @@ const RetroModal = ({ pendiente, tasks, onSave, onClose }) => {
                 className="bg-slate-900 border border-indigo-500/30 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
             >
                 <div className="bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border-b border-indigo-500/20 p-5 flex items-center gap-3">
-                    <div className="p-2 bg-indigo-500/20 rounded-xl">
-                        <Sparkles size={22} className="text-indigo-300" />
+                    <div className="p-2 bg-indigo-500/20 rounded-xl shrink-0">
+                        <Sparkles size={20} className="text-indigo-300" />
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                         <h2 className="font-bold text-white text-lg">Retroalimentación</h2>
                         <p className="text-indigo-300/70 text-xs mt-0.5">Se guardará como nota de soporte</p>
                     </div>
-                    <button onClick={onClose} className="ml-auto text-slate-400 hover:text-white transition-colors">
+                    <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors shrink-0">
                         <X size={20} />
                     </button>
                 </div>
@@ -66,7 +67,7 @@ const RetroModal = ({ pendiente, tasks, onSave, onClose }) => {
                             onChange={e => setContent(e.target.value)}
                         />
                     </div>
-                    <div className="flex gap-3 pt-2">
+                    <div className="flex gap-3 pt-1">
                         <button
                             onClick={onClose}
                             className="px-4 py-2.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors text-sm font-medium"
@@ -77,7 +78,7 @@ const RetroModal = ({ pendiente, tasks, onSave, onClose }) => {
                             onClick={() => onSave(title, content)}
                             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 transition-all active:scale-95 text-sm"
                         >
-                            <BookOpen size={16} />
+                            <BookOpen size={15} />
                             Guardar Nota de Soporte
                         </button>
                     </div>
@@ -88,7 +89,7 @@ const RetroModal = ({ pendiente, tasks, onSave, onClose }) => {
 };
 
 // ─── Global Task Exclusion Modal ──────────────────────────────────────────────
-const GlobalExcludeModal = ({ clientes, onConfirm, onClose, taskDesc, pendienteData }) => {
+const GlobalExcludeModal = ({ clientes, onConfirm, onClose }) => {
     const [excluded, setExcluded] = useState(new Set());
 
     const toggle = (id) => {
@@ -104,21 +105,21 @@ const GlobalExcludeModal = ({ clientes, onConfirm, onClose, taskDesc, pendienteD
                 className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
             >
                 <div className="bg-indigo-600/10 border-b border-slate-700 p-4 flex items-center gap-3">
-                    <Globe size={20} className="text-indigo-400" />
-                    <div>
+                    <Globe size={18} className="text-indigo-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
                         <h2 className="font-bold text-white">Tarea Global</h2>
                         <p className="text-slate-400 text-xs mt-0.5">Elige qué clientes EXCLUIR</p>
                     </div>
-                    <button onClick={onClose} className="ml-auto text-slate-400 hover:text-white"><X size={18} /></button>
+                    <button onClick={onClose} className="text-slate-400 hover:text-white shrink-0"><X size={18} /></button>
                 </div>
-                <div className="p-4 max-h-72 overflow-y-auto space-y-1">
+                <div className="p-4 max-h-72 overflow-y-auto space-y-1 custom-scrollbar">
                     {clientes.map(c => (
                         <div key={c.id} onClick={() => toggle(c.id)}
                             className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all ${excluded.has(c.id) ? 'opacity-40' : 'bg-slate-800/50'}`}>
-                            <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${excluded.has(c.id) ? 'border-slate-600 bg-slate-800' : 'bg-indigo-500 border-indigo-500'}`}>
+                            <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors shrink-0 ${excluded.has(c.id) ? 'border-slate-600 bg-slate-800' : 'bg-indigo-500 border-indigo-500'}`}>
                                 {!excluded.has(c.id) && <Check size={12} className="text-white" />}
                             </div>
-                            <span className="text-sm font-medium text-slate-200">{c.empresa}</span>
+                            <span className="text-sm font-medium text-slate-200 min-w-0 truncate">{c.empresa}</span>
                         </div>
                     ))}
                 </div>
@@ -158,15 +159,12 @@ const TaskPanel = ({ pendiente, onTasksChange, onComplete }) => {
         }
     }, [pendiente?.id]);
 
-    useEffect(() => {
-        fetchTasks();
-    }, [fetchTasks]);
+    useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
     const handleAdd = async (e) => {
         e.preventDefault();
         const desc = newDesc.trim();
         if (!desc) return;
-        // Support multiple lines = multiple tasks
         const lines = desc.split('\n').map(l => l.trim()).filter(Boolean);
         setNewDesc('');
         try {
@@ -221,8 +219,8 @@ const TaskPanel = ({ pendiente, onTasksChange, onComplete }) => {
     const completedCount = tasks.filter(t => t.completed).length;
 
     if (!pendiente) return (
-        <div className="flex-1 flex flex-col items-center justify-center text-slate-600 gap-3">
-            <ListTodo size={48} className="opacity-20" />
+        <div className="flex-1 flex flex-col items-center justify-center text-slate-600 gap-3 p-8">
+            <ListTodo size={44} className="opacity-20" />
             <p className="text-sm">Selecciona un pendiente para ver sus tareas</p>
         </div>
     );
@@ -230,44 +228,38 @@ const TaskPanel = ({ pendiente, onTasksChange, onComplete }) => {
     return (
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             {/* Panel Header */}
-            <div className="p-5 border-b border-slate-800 flex-shrink-0">
-                <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="p-4 md:p-5 border-b border-slate-800 shrink-0">
+                <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="flex-1 min-w-0">
-                        <h2 className="text-lg font-bold text-white truncate">{pendiente.actividad}</h2>
+                        <h2 className="text-base md:text-lg font-bold text-white truncate">{pendiente.actividad}</h2>
                         <div className="flex flex-wrap gap-3 mt-1">
                             {pendiente.empresa && (
-                                <span className="flex items-center gap-1.5 text-xs text-slate-400">
-                                    <Building2 size={12} />
-                                    {pendiente.empresa}
+                                <span className="flex items-center gap-1 text-xs text-slate-400">
+                                    <Building2 size={11} />{pendiente.empresa}
                                 </span>
                             )}
                             {pendiente.fecha_limite && (
-                                <span className="flex items-center gap-1.5 text-xs text-slate-400">
-                                    <Clock size={12} />
-                                    Vence: {pendiente.fecha_limite}
+                                <span className="flex items-center gap-1 text-xs text-slate-400">
+                                    <Clock size={11} />Vence: {pendiente.fecha_limite}
                                 </span>
                             )}
                         </div>
                     </div>
-                    <span className={`shrink-0 text-xs px-2.5 py-1 rounded-full border font-bold ${pendiente.estado === 'Finalizado' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                            pendiente.estado === 'En Curso' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                                'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                        }`}>{pendiente.estado}</span>
+                    <Badge status={pendiente.estado} dark className="shrink-0 mt-0.5" />
                 </div>
 
-                {/* Observaciones */}
                 {pendiente.observaciones && (
-                    <div className="bg-blue-500/5 border border-blue-500/15 rounded-xl p-3 text-xs text-slate-400 leading-relaxed whitespace-pre-wrap">
+                    <div className="bg-blue-500/5 border border-blue-500/15 rounded-xl p-3 text-xs text-slate-400 leading-relaxed whitespace-pre-wrap mt-2">
                         <span className="font-bold text-blue-400 uppercase tracking-wider text-[10px]">Observaciones · </span>
                         {pendiente.observaciones}
                     </div>
                 )}
             </div>
 
-            {/* Tasks progress */}
+            {/* Progress bar */}
             {tasks.length > 0 && (
-                <div className="px-5 pt-4 flex-shrink-0">
-                    <div className="flex items-center justify-between mb-2">
+                <div className="px-5 pt-4 shrink-0">
+                    <div className="flex items-center justify-between mb-1.5">
                         <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                             Tareas · {completedCount}/{tasks.length}
                         </span>
@@ -285,13 +277,13 @@ const TaskPanel = ({ pendiente, onTasksChange, onComplete }) => {
                 </div>
             )}
 
-            {/* Task List */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2 min-h-0">
+            {/* Task list */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2 min-h-0 custom-scrollbar">
                 {loading ? (
                     <div className="flex items-center justify-center py-8 text-slate-600 text-sm">Cargando tareas...</div>
                 ) : tasks.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 text-slate-600 gap-2">
-                        <ListTodo size={32} className="opacity-30" />
+                        <ListTodo size={30} className="opacity-30" />
                         <p className="text-sm italic">Sin tareas registradas</p>
                     </div>
                 ) : (
@@ -302,23 +294,24 @@ const TaskPanel = ({ pendiente, onTasksChange, onComplete }) => {
                                 initial={{ opacity: 0, x: -12 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: 12, height: 0 }}
-                                className={`group flex items-start gap-3 p-3 rounded-xl border transition-all ${task.completed
+                                className={`group flex items-start gap-3 p-3 rounded-xl border transition-all ${
+                                    task.completed
                                         ? 'bg-emerald-500/5 border-emerald-500/10'
                                         : 'bg-slate-800/40 border-slate-700/40 hover:border-slate-600/60'
-                                    }`}
+                                }`}
                             >
                                 <button
                                     onClick={() => toggleTask(task)}
-                                    className={`mt-0.5 flex-shrink-0 transition-colors ${task.completed ? 'text-emerald-400' : 'text-slate-600 hover:text-blue-400'}`}
+                                    className={`mt-0.5 shrink-0 transition-colors ${task.completed ? 'text-emerald-400' : 'text-slate-600 hover:text-blue-400'}`}
                                 >
-                                    {task.completed ? <CheckSquare size={18} /> : <Square size={18} />}
+                                    {task.completed ? <CheckSquare size={17} /> : <Square size={17} />}
                                 </button>
 
                                 {editingId === task.id ? (
-                                    <div className="flex-1 flex gap-2">
+                                    <div className="flex-1 flex gap-2 min-w-0">
                                         <input
                                             autoFocus
-                                            className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-2 py-1 text-sm text-white outline-none focus:border-blue-500"
+                                            className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-2 py-1 text-sm text-white outline-none focus:border-blue-500 min-w-0"
                                             value={editDesc}
                                             onChange={e => setEditDesc(e.target.value)}
                                             onKeyDown={e => {
@@ -326,17 +319,17 @@ const TaskPanel = ({ pendiente, onTasksChange, onComplete }) => {
                                                 if (e.key === 'Escape') setEditingId(null);
                                             }}
                                         />
-                                        <button onClick={() => saveEdit(task)} className="text-blue-400 hover:text-blue-300 text-xs font-bold px-2">✓</button>
-                                        <button onClick={() => setEditingId(null)} className="text-slate-500 hover:text-white text-xs px-1">✕</button>
+                                        <button onClick={() => saveEdit(task)} className="text-blue-400 hover:text-blue-300 text-xs font-bold px-2 shrink-0">✓</button>
+                                        <button onClick={() => setEditingId(null)} className="text-slate-500 hover:text-white text-xs px-1 shrink-0">✕</button>
                                     </div>
                                 ) : (
-                                    <span className={`flex-1 text-sm leading-relaxed ${task.completed ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
+                                    <span className={`flex-1 text-sm leading-relaxed min-w-0 ${task.completed ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
                                         {task.description}
                                     </span>
                                 )}
 
                                 {editingId !== task.id && (
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                                         <button
                                             onClick={() => { setEditingId(task.id); setEditDesc(task.description); }}
                                             className="p-1 text-slate-500 hover:text-blue-400 rounded-lg transition-colors"
@@ -357,13 +350,13 @@ const TaskPanel = ({ pendiente, onTasksChange, onComplete }) => {
                 )}
             </div>
 
-            {/* Add Task Input */}
+            {/* Add Task */}
             {pendiente.estado !== 'Finalizado' && (
-                <div className="px-5 pb-4 flex-shrink-0 border-t border-slate-800 pt-4">
+                <div className="px-5 pb-3 shrink-0 border-t border-slate-800 pt-3">
                     <form onSubmit={handleAdd} className="flex gap-2">
                         <textarea
                             ref={inputRef}
-                            className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 resize-none transition-all"
+                            className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 resize-none transition-all min-w-0"
                             placeholder="Nueva tarea (Enter = agregar, Shift+Enter = nueva línea para varias)"
                             value={newDesc}
                             onChange={e => setNewDesc(e.target.value)}
@@ -375,7 +368,7 @@ const TaskPanel = ({ pendiente, onTasksChange, onComplete }) => {
                                 }
                             }}
                         />
-                        <button type="submit" className="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-all active:scale-95">
+                        <button type="submit" className="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-all active:scale-95 shrink-0">
                             <Plus size={18} />
                         </button>
                     </form>
@@ -384,12 +377,12 @@ const TaskPanel = ({ pendiente, onTasksChange, onComplete }) => {
 
             {/* Complete Button */}
             {pendiente.estado !== 'Finalizado' && (
-                <div className="px-5 pb-5 flex-shrink-0">
+                <div className="px-5 pb-5 shrink-0">
                     <button
                         onClick={() => onComplete(tasks)}
                         className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] text-sm"
                     >
-                        <Check size={18} />
+                        <Check size={17} />
                         Marcar Pendiente como Completado
                     </button>
                 </div>
@@ -408,8 +401,8 @@ const PendingPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [modalOpen, setModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
-    const [retroModal, setRetroModal] = useState(null); // { pendiente, tasks }
-    const [globalExcludeModal, setGlobalExcludeModal] = useState(null); // pendienteData
+    const [retroModal, setRetroModal] = useState(null);
+    const [globalExcludeModal, setGlobalExcludeModal] = useState(null);
     const [showCC, setShowCC] = useState(false);
 
     const emptyForm = {
@@ -425,13 +418,12 @@ const PendingPage = () => {
         dias_antes_notificacion: 3
     };
     const [formData, setFormData] = useState(emptyForm);
-    const [taskLines, setTaskLines] = useState(''); // multiline tasks input in form
+    const [taskLines, setTaskLines] = useState('');
 
     const selectedPendiente = pendientes.find(p => p.id === selectedId) || null;
 
     useEffect(() => {
         fetchAll();
-        // Check URL param for pre-selecting
         const paramId = searchParams.get('pendiente');
         if (paramId) setSelectedId(parseInt(paramId));
     }, []);
@@ -442,7 +434,6 @@ const PendingPage = () => {
             const [pRes, cRes] = await Promise.all([getPendientes(), getClientes()]);
             setPendientes(pRes.data);
             setClientes(cRes.data);
-            // Pre-select first if URL param
             const paramId = searchParams.get('pendiente');
             if (paramId) setSelectedId(parseInt(paramId));
         } catch (e) {
@@ -455,11 +446,9 @@ const PendingPage = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         const toastId = toast.loading('Guardando...');
-
         try {
             let res;
             const payload = { ...formData };
-
             if (editingItem) {
                 await updatePendiente(editingItem.id, payload);
                 toast.success('Pendiente actualizado', { id: toastId });
@@ -468,21 +457,14 @@ const PendingPage = () => {
                 res = await addPendiente(payload);
                 toast.success('Pendiente creado', { id: toastId });
             }
-
-            // Add tasks if any
             const newId = res?.data?.id || editingItem?.id;
             if (newId && taskLines.trim()) {
                 const lines = taskLines.split('\n').map(l => l.trim().replace(/^[-•]\s*/, '')).filter(Boolean);
-                if (lines.length > 0) {
-                    await addPendienteTasksBulk(newId, lines);
-                }
+                if (lines.length > 0) await addPendienteTasksBulk(newId, lines);
             }
-
-            // If no empresa selected: ask about global
             if (!payload.empresa && !editingItem) {
                 setGlobalExcludeModal({ pendienteId: newId, taskLines });
             }
-
             setModalOpen(false);
             setEditingItem(null);
             setFormData(emptyForm);
@@ -498,12 +480,9 @@ const PendingPage = () => {
     const handleGlobalConfirm = async (excludedIds) => {
         const { pendienteId } = globalExcludeModal;
         setGlobalExcludeModal(null);
-        // Add global task to all non-excluded clients
         const currentTasks = (await getPendienteTasks(pendienteId)).data;
         for (const task of currentTasks) {
-            try {
-                await addGlobalTask({ description: task.description, excludedClientIds: excludedIds });
-            } catch { }
+            try { await addGlobalTask({ description: task.description, excludedClientIds: excludedIds }); } catch { }
         }
         toast.success('Tarea global asignada a clientes');
     };
@@ -529,26 +508,26 @@ const PendingPage = () => {
 
     const handleNotify = (item) => {
         toast.custom((t) => (
-            <div className="flex flex-col w-[380px] bg-slate-900 border border-slate-700 shadow-2xl rounded-2xl overflow-hidden">
+            <div className="flex flex-col w-[360px] bg-slate-900 border border-slate-700 shadow-2xl rounded-2xl overflow-hidden">
                 <div className="bg-slate-800/50 p-4 border-b border-slate-700/50 flex items-center gap-3">
-                    <div className="p-2 bg-blue-500/10 text-blue-400 rounded-lg ring-1 ring-blue-500/20">
-                        <Send size={16} />
+                    <div className="p-2 bg-blue-500/10 text-blue-400 rounded-lg ring-1 ring-blue-500/20 shrink-0">
+                        <Send size={15} />
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-white text-sm">Confirmar Envío</h3>
                         <p className="text-slate-400 text-[11px]">Recordatorio por correo</p>
                     </div>
-                    <button onClick={() => toast.dismiss(t)} className="text-slate-500 hover:text-white p-1"><X size={16} /></button>
+                    <button onClick={() => toast.dismiss(t)} className="text-slate-500 hover:text-white p-1 shrink-0"><X size={15} /></button>
                 </div>
-                <div className="p-4 space-y-3">
+                <div className="p-4 space-y-2.5">
                     <div className="flex items-center gap-2.5 p-2.5 bg-slate-950 rounded-xl border border-slate-800">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                         <span className="text-sm text-slate-200 truncate">{item.email_notificacion || item.emailNotificacion}</span>
                     </div>
                     {item.cc_emails && (
                         <div className="flex flex-wrap gap-1 p-2.5 bg-slate-950 rounded-xl border border-slate-800">
                             {item.cc_emails.split(',').map((email, i) => (
-                                <span key={i} className="text-[11px] bg-slate-800 text-slate-300 px-2 py-1 rounded-md border border-slate-700">{email.trim()}</span>
+                                <span key={i} className="text-[11px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-md border border-slate-700">{email.trim()}</span>
                             ))}
                         </div>
                     )}
@@ -565,7 +544,7 @@ const PendingPage = () => {
                             toast.error(error.response?.data?.error || 'Error', { id: id2 });
                         }
                     }} className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-lg flex items-center gap-2 transition-all">
-                        <Send size={14} /> Enviar
+                        <Send size={13} /> Enviar
                     </button>
                 </div>
             </div>
@@ -574,7 +553,6 @@ const PendingPage = () => {
 
     const handleComplete = async (tasks) => {
         if (!selectedPendiente) return;
-        // Show retroalimentación modal
         setRetroModal({ pendiente: selectedPendiente, tasks });
     };
 
@@ -624,18 +602,12 @@ const PendingPage = () => {
         (p.empresa || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const statusColor = (estado) => {
-        if (estado === 'Finalizado') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-        if (estado === 'En Curso') return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-        return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-    };
-
     return (
         <div className="flex flex-col h-[calc(100vh-2rem)] md:h-[calc(100vh-4rem)] gap-0 pb-20 md:pb-0">
             <Toaster position="top-center" theme="dark" richColors />
 
             {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 flex-shrink-0">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 shrink-0">
                 <div>
                     <h1 className="text-2xl font-bold text-white">Pendientes</h1>
                     <p className="text-slate-500 text-xs mt-0.5">Gestión de tareas y recordatorios</p>
@@ -644,7 +616,7 @@ const PendingPage = () => {
                     onClick={() => openModal()}
                     className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/25 transition-all active:scale-95 font-medium text-sm"
                 >
-                    <Plus size={18} />
+                    <Plus size={17} />
                     Nuevo Pendiente
                 </button>
             </div>
@@ -652,28 +624,22 @@ const PendingPage = () => {
             {/* Split Panel */}
             <div className="flex-1 flex gap-4 min-h-0 overflow-hidden">
                 {/* LEFT: Pendientes List */}
-                <div className="w-full md:w-80 lg:w-96 flex-shrink-0 flex flex-col bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden">
-                    {/* Search */}
-                    <div className="p-3 border-b border-slate-800 flex-shrink-0">
-                        <div className="flex items-center gap-2 bg-slate-800 rounded-xl px-3 py-2">
-                            <Search size={15} className="text-slate-500" />
-                            <input
-                                type="text"
-                                placeholder="Buscar..."
-                                className="bg-transparent outline-none text-sm text-slate-300 placeholder-slate-600 flex-1"
-                                value={searchTerm}
-                                onChange={e => setSearchTerm(e.target.value)}
-                            />
-                        </div>
+                <div className="w-full md:w-80 lg:w-96 shrink-0 flex flex-col bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden">
+                    <div className="p-3 border-b border-slate-800 shrink-0">
+                        <SearchInput
+                            dark
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            placeholder="Buscar..."
+                        />
                     </div>
 
-                    {/* List */}
-                    <div className="flex-1 overflow-y-auto">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
                         {loading ? (
                             <div className="flex items-center justify-center py-12 text-slate-600 text-sm">Cargando...</div>
                         ) : filtered.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-12 text-slate-600 gap-2">
-                                <AlertCircle size={32} className="opacity-20" />
+                                <AlertCircle size={30} className="opacity-20" />
                                 <p className="text-sm">Sin pendientes</p>
                             </div>
                         ) : (
@@ -685,15 +651,13 @@ const PendingPage = () => {
                                         className={`w-full text-left p-4 transition-all hover:bg-slate-800/50 group relative ${selectedId === item.id ? 'bg-blue-600/10 border-l-2 border-blue-500' : 'border-l-2 border-transparent'}`}
                                     >
                                         {selectedId === item.id && (
-                                            <ChevronRight size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-400" />
+                                            <ChevronRight size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-400" />
                                         )}
                                         <div className="flex items-start justify-between gap-2 pr-4">
                                             <span className={`text-sm font-semibold leading-snug ${selectedId === item.id ? 'text-white' : 'text-slate-300'}`}>
                                                 {item.actividad}
                                             </span>
-                                            <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full border font-bold ${statusColor(item.estado)}`}>
-                                                {item.estado}
-                                            </span>
+                                            <Badge status={item.estado} dark size="xs" className="shrink-0 mt-0.5" />
                                         </div>
                                         <div className="flex flex-wrap gap-2 mt-1.5">
                                             {item.empresa && (
@@ -707,18 +671,17 @@ const PendingPage = () => {
                                                 </span>
                                             )}
                                         </div>
-                                        {/* Action buttons */}
                                         <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                                             {(item.email_notificacion || item.emailNotificacion) && (
                                                 <button onClick={() => handleNotify(item)} className="p-1 text-slate-500 hover:text-emerald-400 rounded transition-colors" title="Notificar">
-                                                    <Send size={13} />
+                                                    <Send size={12} />
                                                 </button>
                                             )}
                                             <button onClick={() => openModal(item)} className="p-1 text-slate-500 hover:text-blue-400 rounded transition-colors">
-                                                <Edit2 size={13} />
+                                                <Edit2 size={12} />
                                             </button>
                                             <button onClick={() => handleDelete(item.id)} className="p-1 text-slate-500 hover:text-red-400 rounded transition-colors">
-                                                <Trash2 size={13} />
+                                                <Trash2 size={12} />
                                             </button>
                                         </div>
                                     </button>
@@ -728,7 +691,7 @@ const PendingPage = () => {
                     </div>
                 </div>
 
-                {/* RIGHT: Task Panel */}
+                {/* RIGHT: Task Panel (desktop) */}
                 <div className="hidden md:flex flex-1 flex-col bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden min-w-0">
                     <TaskPanel
                         pendiente={selectedPendiente}
@@ -738,9 +701,9 @@ const PendingPage = () => {
                 </div>
             </div>
 
-            {/* Mobile Task View - shown below list when selected */}
+            {/* Mobile Task View */}
             {selectedId && (
-                <div className="md:hidden mt-3 flex-shrink-0 bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden max-h-[50vh] flex flex-col">
+                <div className="md:hidden mt-3 shrink-0 bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden max-h-[50vh] flex flex-col">
                     <TaskPanel
                         pendiente={selectedPendiente}
                         onTasksChange={fetchAll}
@@ -752,7 +715,7 @@ const PendingPage = () => {
             {/* New/Edit Modal */}
             <AnimatePresence>
                 {modalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-10 bg-black/70 backdrop-blur-sm overflow-y-auto">
+                    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-8 bg-black/70 backdrop-blur-sm overflow-y-auto">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -761,14 +724,18 @@ const PendingPage = () => {
                         >
                             <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950">
                                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                    {editingItem ? <Edit2 size={18} className="text-blue-400" /> : <Plus size={18} className="text-blue-400" />}
+                                    {editingItem
+                                        ? <Edit2 size={17} className="text-blue-400" />
+                                        : <Plus size={17} className="text-blue-400" />
+                                    }
                                     {editingItem ? 'Editar Pendiente' : 'Nuevo Pendiente'}
                                 </h2>
-                                <button onClick={() => setModalOpen(false)} className="text-slate-400 hover:text-white transition-colors"><X size={22} /></button>
+                                <button onClick={() => setModalOpen(false)} className="text-slate-400 hover:text-white transition-colors p-1">
+                                    <X size={20} />
+                                </button>
                             </div>
 
                             <form onSubmit={handleSubmit} className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {/* Actividad */}
                                 <div className="md:col-span-2 space-y-1.5">
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Actividad / Asunto</label>
                                     <input
@@ -780,11 +747,10 @@ const PendingPage = () => {
                                     />
                                 </div>
 
-                                {/* Empresa - from clientes */}
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                                        <Building2 size={12} /> Empresa
-                                        <span className="text-slate-600 font-normal normal-case">(opcional - vacío = global)</span>
+                                        <Building2 size={11} /> Empresa
+                                        <span className="text-slate-600 font-normal normal-case">(vacío = global)</span>
                                     </label>
                                     <select
                                         className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:border-blue-500 outline-none transition-all appearance-none"
@@ -798,7 +764,6 @@ const PendingPage = () => {
                                     </select>
                                 </div>
 
-                                {/* Estado */}
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Estado</label>
                                     <select
@@ -812,7 +777,6 @@ const PendingPage = () => {
                                     </select>
                                 </div>
 
-                                {/* Observaciones */}
                                 <div className="md:col-span-2 space-y-1.5">
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Observaciones</label>
                                     <textarea
@@ -823,11 +787,10 @@ const PendingPage = () => {
                                     />
                                 </div>
 
-                                {/* Tasks */}
                                 {!editingItem && (
                                     <div className="md:col-span-2 space-y-1.5">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                                            <ListTodo size={12} /> Tareas iniciales
+                                            <ListTodo size={11} /> Tareas iniciales
                                             <span className="text-slate-600 font-normal normal-case">(una por línea)</span>
                                         </label>
                                         <textarea
@@ -839,23 +802,21 @@ const PendingPage = () => {
                                     </div>
                                 )}
 
-                                <div className="md:col-span-2 border-t border-slate-800 my-1"></div>
+                                <div className="md:col-span-2 border-t border-slate-800" />
 
-                                {/* Fecha Límite */}
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha Límite</label>
                                     <div className="relative">
-                                        <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500" size={16} />
+                                        <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500" size={15} />
                                         <input
                                             type="date"
-                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-4 py-2.5 focus:border-blue-500 outline-none [color-scheme:dark]"
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-4 py-2.5 focus:border-blue-500 outline-none [color-scheme:dark] text-slate-200"
                                             value={formData.fecha_limite}
                                             onChange={e => setFormData({ ...formData, fecha_limite: e.target.value })}
                                         />
                                     </div>
                                 </div>
 
-                                {/* Days before */}
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Días Anticipación</label>
                                     <input
@@ -866,7 +827,6 @@ const PendingPage = () => {
                                     />
                                 </div>
 
-                                {/* Email */}
                                 <div className="space-y-1.5">
                                     <div className="flex justify-between items-center">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email Notificación</label>
@@ -875,7 +835,7 @@ const PendingPage = () => {
                                         </button>
                                     </div>
                                     <div className="relative">
-                                        <Bell className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" size={15} />
+                                        <Bell className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" size={14} />
                                         <input
                                             type="email"
                                             placeholder="correo@ejemplo.com"
@@ -899,8 +859,10 @@ const PendingPage = () => {
                                     </div>
                                 )}
 
-                                <div className="md:col-span-2 flex justify-end gap-3 pt-2">
-                                    <button type="button" onClick={() => setModalOpen(false)} className="px-5 py-2.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors font-medium text-sm">Cancelar</button>
+                                <div className="md:col-span-2 flex justify-end gap-3 pt-1">
+                                    <button type="button" onClick={() => setModalOpen(false)} className="px-5 py-2.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors font-medium text-sm">
+                                        Cancelar
+                                    </button>
                                     <button type="submit" className="px-7 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-sm">
                                         {editingItem ? 'Guardar Cambios' : 'Crear Pendiente'}
                                     </button>

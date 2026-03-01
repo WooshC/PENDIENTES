@@ -25,3 +25,4 @@ appsettings.local.json
 *.suo
 *.user
 **/Backups/
+*.sln
