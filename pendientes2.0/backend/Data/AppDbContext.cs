@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<Cliente> Clientes { get; set; }
     public DbSet<ClientTask> ClientTasks { get; set; }
     public DbSet<SupportNote> SupportNotes { get; set; }
+    public DbSet<SupportNoteImage> SupportNoteImages { get; set; }
     public DbSet<AiChatMessage> AiChatHistory { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -37,5 +38,11 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<PendienteTask>()
             .Property(t => t.Completed)
             .HasConversion<int>();
+
+        modelBuilder.Entity<SupportNote>()
+            .HasMany(n => n.Images)
+            .WithOne(i => i.SupportNote)
+            .HasForeignKey(i => i.SupportNoteId)
+            .OnDelete(DeleteBehavior.Cascade); 
     }
 }

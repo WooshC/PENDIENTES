@@ -122,6 +122,7 @@ public class SupportNote
     [Column("title")]
     public string Title { get; set; } = "Nota sin título";
 
+    // Ahora Content almacenará HTML: "<p>Texto <img src='/api/supportnotes/images/1'></p>"
     [Column("content")]
     public string Content { get; set; } = "";
 
@@ -130,7 +131,43 @@ public class SupportNote
 
     [Column("updated_at")]
     public string UpdatedAt { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+    // Relación: Una nota tiene muchas imágenes
+    public List<SupportNoteImage> Images { get; set; } = new();
 }
+
+[Table("support_note_images")]
+public class SupportNoteImage
+{
+    [Key]
+    [Column("id")]
+    public int Id { get; set; }
+
+    [Column("support_note_id")]
+    [ForeignKey("SupportNote")]
+    public int SupportNoteId { get; set; }
+
+    [Column("file_name")]
+    public string FileName { get; set; } = "";  // Nombre original: "screenshot.png"
+
+    [Column("content_type")]
+    public string ContentType { get; set; } = "image/png"; // MIME type para servir correctamente
+    
+    [Column("file_path")]
+    public string FilePath { get; set; } = "";   // Ruta física: "/uploads/support-notes/5/abc.png"
+
+    [Column("file_size")]
+    public long FileSize { get; set; } = 0;      // Tamaño en bytes (útil para límites y backup)
+    
+    [Column("created_at")]
+    public string CreatedAt { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+    // Relación inversa (nullable para evitar ciclos JSON)
+    public SupportNote? SupportNote { get; set; }
+}
+
+
+
 
 [Table("ai_chat_history")]
 public class AiChatMessage
