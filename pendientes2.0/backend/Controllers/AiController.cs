@@ -2,6 +2,7 @@ using Backend.Data;
 using Backend.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Net.Http.Headers;
@@ -21,6 +22,73 @@ public class AiController : ControllerBase
         _context = context;
         _configuration = configuration;
         _httpClientFactory = httpClientFactory;
+    }
+
+    private static string NormalizeText(string text)
+    {
+        var normalized = text.ToLowerInvariant().Normalize(NormalizationForm.FormD);
+        var chars = normalized.Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark);
+        return new string(chars.ToArray());
+    }
+
+    private static List<SupportNote> FilterRelevantNotes(List<SupportNote> notes, string? query, int maxNotes, int maxContextChars)
+    {
+        if (string.IsNullOrWhiteSpace(query) || notes.Count == 0)
+            return notes.Take(maxNotes).ToList();
+
+        // Extract meaningful keywords (3+ chars, skip common Spanish/English stop words)
+        var stopWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "que", "qué", "como", "cómo", "cual", "cuál", "para", "por", "con", "una", "uno",
+            "los", "las", "del", "the", "and", "for", "how", "what", "when", "where", "why",
+            "hay", "tiene", "esta", "esto", "este", "son", "hay", "puedo", "puede", "hacer"
+        };
+
+        var keywords = NormalizeText(query)
+            .Split(new[] { ' ', ',', '.', '?', '!', ':', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+            .Where(w => w.Length >= 3 && !stopWords.Contains(w))
+            .Distinct()
+            .ToList();
+
+        // Score each note by keyword matches in title + content
+        // Uses both full keyword and a 6-char prefix (pseudo-stem) to handle verb conjugations
+        // NormalizeText strips accents so "fórmulas" matches "formulas"
+        var scored = notes.Select(note =>
+        {
+            var text = NormalizeText($"{note.Title} {note.Content}");
+            var score = keywords.Count(kw =>
+                text.Contains(kw) ||
+                (kw.Length > 6 && text.Contains(kw[..6]))
+            );
+            return (note, score);
+        }).ToList();
+
+        // Take notes with matches first, then fill with most recent if needed
+        var selected = scored
+            .Where(x => x.score > 0)
+            .OrderByDescending(x => x.score)
+            .Select(x => x.note)
+            .Take(maxNotes)
+            .ToList();
+
+        if (selected.Count == 0)
+        {
+            // No keyword match — take the most recent notes as fallback
+            selected = notes.TakeLast(Math.Min(maxNotes, notes.Count)).ToList();
+        }
+
+        // Cap total context size to avoid exceeding token limits
+        var result = new List<SupportNote>();
+        int totalChars = 0;
+        foreach (var note in selected)
+        {
+            var noteLen = (note.Title?.Length ?? 0) + (note.Content?.Length ?? 0) + 30;
+            if (totalChars + noteLen > maxContextChars) break;
+            result.Add(note);
+            totalChars += noteLen;
+        }
+
+        return result;
     }
 
     [HttpGet("history")]
@@ -68,12 +136,13 @@ public class AiController : ControllerBase
         _context.AiChatHistory.Add(userMsg);
         await _context.SaveChangesAsync();
         
-        // 1. Get Support Notes Context
-        var notes = await _context.SupportNotes.ToListAsync();
+        // 1. Get Support Notes Context — filtered by relevance to avoid token limits
+        var allNotes = await _context.SupportNotes.ToListAsync();
+        var relevantNotes = FilterRelevantNotes(allNotes, query, maxNotes: 8, maxContextChars: 6000);
         var contextText = new StringBuilder();
-        foreach (var note in notes)
+        foreach (var note in relevantNotes)
         {
-            contextText.AppendLine($"- [{note.CreatedAt:yyyy-MM-dd}] {note.Title}: {note.Content}");
+            contextText.AppendLine($"- [{note.CreatedAt}] {note.Title}: {note.Content}");
         }
 
         // 2. Call Groq API (Llama 3 via OpenAI-compatible endpoint)
