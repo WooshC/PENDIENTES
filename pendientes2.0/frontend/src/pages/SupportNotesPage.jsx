@@ -22,7 +22,7 @@ const handleBrokenImages = () => {
             img.onerror = null;
             img.onerror = function () {
                 const placeholder = document.createElement('div');
-                placeholder.innerHTML = '🖼️ Imagen no disponible';
+                placeholder.innerHTML = 'Imagen no disponible';
                 placeholder.style.cssText = 'padding:12px;background:#1e293b;border:1px dashed #475569;border-radius:8px;color:#64748b;font-size:12px;display:inline-block;margin:4px 0;';
                 this.parentNode?.replaceChild(placeholder, this);
             };
