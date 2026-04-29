@@ -46,6 +46,15 @@ export const getSupportNotes = () => api.get('/supportnotes');
 export const addSupportNote = (data) => api.post('/supportnotes', data);
 export const updateSupportNote = (id, data) => api.put(`/supportnotes/${id}`, data);
 export const deleteSupportNote = (id) => api.delete(`/supportnotes/${id}`);
+export const uploadNoteImage = (noteId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/supportnotes/${noteId}/images`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    });
+};
+export const getNoteImages = (noteId) => api.get(`/supportnotes/${noteId}/images`);
+export const deleteNoteImage = (imageId) => api.delete(`/supportnotes/images/${imageId}`);
 
 // AI
 export const askAi = (query) => api.post('/ai/ask', { query });
