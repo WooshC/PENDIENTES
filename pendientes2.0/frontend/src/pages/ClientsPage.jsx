@@ -215,7 +215,7 @@ const ClientsPage = () => {
                 <div className="w-full lg:w-auto flex flex-wrap items-center gap-2">
                     <button
                         onClick={() => setGlobalTaskModalOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 font-bold text-white rounded-xl shadow-lg shadow-indigo-500/20 hover:brightness-110 active:scale-95 transition-all text-sm"
+                        className="flex items-center gap-2 px-4 py-2 bg-amber-600 font-bold text-white rounded-xl shadow-lg shadow-amber-500/20 hover:brightness-110 active:scale-95 transition-all text-sm"
                     >
                         <Layers size={16} />
                         Tarea Global
@@ -223,7 +223,7 @@ const ClientsPage = () => {
 
                     {/* Excel tools */}
                     <div className="flex items-center gap-1.5">
-                        <button onClick={handleExportExcel} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors border border-slate-200 bg-white shadow-sm" title="Exportar Excel">
+                        <button onClick={handleExportExcel} className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors border border-slate-200 bg-white shadow-sm" title="Exportar Excel">
                             <Download size={18} />
                         </button>
                         <div className="relative">
@@ -241,7 +241,7 @@ const ClientsPage = () => {
 
                     <button
                         onClick={() => { setEditingClient(null); setClientFormData({ empresa: '', observaciones: '', check_estado: false, estado: 'Pendiente' }); setClientModalOpen(true); }}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 font-bold text-white rounded-xl shadow-lg shadow-blue-500/20 hover:brightness-110 active:scale-95 transition-all text-sm"
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 font-bold text-white rounded-xl shadow-lg shadow-emerald-500/20 hover:brightness-110 active:scale-95 transition-all text-sm"
                     >
                         <Plus size={16} />
                         Nuevo Cliente
@@ -264,7 +264,7 @@ const ClientsPage = () => {
                     <div className="relative">
                         <button
                             onClick={() => setShowFilters(!showFilters)}
-                            className={`w-full sm:w-auto flex items-center justify-between gap-2 border rounded-xl px-4 py-2.5 shadow-sm transition-all ${showFilters || statusFilter !== 'Todos' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'}`}
+                            className={`w-full sm:w-auto flex items-center justify-between gap-2 border rounded-xl px-4 py-2.5 shadow-sm transition-all ${showFilters || statusFilter !== 'Todos' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'}`}
                         >
                             <div className="flex items-center gap-2">
                                 <Filter size={15} />
@@ -283,7 +283,7 @@ const ClientsPage = () => {
                                         <button
                                             key={status}
                                             onClick={() => { setStatusFilter(status); setShowFilters(false); }}
-                                            className={`w-full text-left px-4 py-2.5 text-sm font-medium hover:bg-slate-50 transition-colors flex items-center justify-between ${statusFilter === status ? 'text-blue-600 bg-blue-50' : 'text-slate-600'}`}
+                                            className={`w-full text-left px-4 py-2.5 text-sm font-medium hover:bg-slate-50 transition-colors flex items-center justify-between ${statusFilter === status ? 'text-emerald-600 bg-emerald-50' : 'text-slate-600'}`}
                                         >
                                             {status}
                                             {statusFilter === status && <Check size={14} />}
@@ -298,7 +298,7 @@ const ClientsPage = () => {
                 {/* Table Header (desktop) */}
                 <div className="hidden md:grid grid-cols-12 px-6 py-3 bg-slate-50 border-b border-slate-100 gap-4">
                     {[['col-span-4', 'Empresa'], ['col-span-2 text-center', 'Estado'], ['col-span-2', 'Tareas'], ['col-span-3', 'Observaciones'], ['col-span-1 text-right', 'Acciones']].map(([cls, label]) => (
-                        <div key={label} className={`${cls} text-xs font-bold text-blue-600 uppercase tracking-wider`}>{label}</div>
+                        <div key={label} className={`${cls} text-xs font-bold text-emerald-600 uppercase tracking-wider`}>{label}</div>
                     ))}
                 </div>
 
@@ -349,7 +349,7 @@ const ClientsPage = () => {
                     <div>
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Nombre Empresa</label>
                         <input
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 font-medium transition-all"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 text-slate-700 font-medium transition-all"
                             value={clientFormData.empresa}
                             onChange={e => setClientFormData({ ...clientFormData, empresa: e.target.value })}
                             required
@@ -358,7 +358,7 @@ const ClientsPage = () => {
                     <div>
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Estado</label>
                         <select
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 text-slate-700 transition-all"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500 text-slate-700 transition-all"
                             value={clientFormData.estado}
                             onChange={e => setClientFormData({ ...clientFormData, estado: e.target.value })}
                         >
@@ -370,7 +370,7 @@ const ClientsPage = () => {
                     <div>
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Observaciones</label>
                         <textarea
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 text-slate-700 h-24 resize-none transition-all"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500 text-slate-700 h-24 resize-none transition-all"
                             value={clientFormData.observaciones}
                             onChange={e => setClientFormData({ ...clientFormData, observaciones: e.target.value })}
                             placeholder="Detalles adicionales..."
@@ -378,7 +378,7 @@ const ClientsPage = () => {
                     </div>
                     <div className="flex gap-3 pt-1">
                         <button type="button" onClick={() => setClientModalOpen(false)} className="px-5 py-2.5 text-slate-500 font-medium hover:bg-slate-100 rounded-xl transition-colors text-sm">Cancelar</button>
-                        <button type="submit" className="flex-1 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold shadow-lg shadow-blue-500/20 text-sm active:scale-95 transition-all">Guardar Cambios</button>
+                        <button type="submit" className="flex-1 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold shadow-lg shadow-emerald-500/20 text-sm active:scale-95 transition-all">Guardar Cambios</button>
                     </div>
                 </form>
             </Modal>
@@ -389,15 +389,15 @@ const ClientsPage = () => {
                 onClose={() => setGlobalTaskModalOpen(false)}
                 maxWidth="max-w-xl"
                 header={
-                    <div className="bg-indigo-600 p-5 flex justify-between items-start shrink-0">
+                    <div className="bg-amber-600 p-5 flex justify-between items-start shrink-0">
                         <div>
                             <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                <Layers size={22} className="text-indigo-200" />
+                                <Layers size={22} className="text-amber-200" />
                                 Tarea Global
                             </h2>
-                            <p className="text-indigo-100/80 text-sm mt-0.5">Asigna una tarea a múltiples clientes simultáneamente.</p>
+                            <p className="text-amber-100/80 text-sm mt-0.5">Asigna una tarea a múltiples clientes simultáneamente.</p>
                         </div>
-                        <button onClick={() => setGlobalTaskModalOpen(false)} className="text-indigo-200 hover:text-white bg-white/10 p-1.5 rounded-lg hover:bg-white/20 transition-colors">
+                        <button onClick={() => setGlobalTaskModalOpen(false)} className="text-amber-200 hover:text-white bg-white/10 p-1.5 rounded-lg hover:bg-white/20 transition-colors">
                             <X size={18} />
                         </button>
                     </div>
@@ -407,7 +407,7 @@ const ClientsPage = () => {
                     <div>
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Descripción de la Tarea</label>
                         <input
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-800 font-medium text-sm placeholder-slate-400 transition-all"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-slate-800 font-medium text-sm placeholder-slate-400 transition-all"
                             placeholder="Ej. Realizar respaldo mensual..."
                             value={globalTaskDesc}
                             onChange={e => setGlobalTaskDesc(e.target.value)}
@@ -418,12 +418,12 @@ const ClientsPage = () => {
                     <div className="flex-1 overflow-hidden flex flex-col bg-slate-50 border border-slate-200 rounded-xl max-h-64">
                         <div className="p-3 border-b border-slate-200 bg-slate-100 text-xs font-bold text-slate-500 uppercase tracking-wider flex justify-between items-center">
                             <span>Destinatarios ({clientes.length - excludedClients.size} seleccionados)</span>
-                            <button className="text-indigo-600 cursor-pointer hover:underline" onClick={() => setExcludedClients(new Set())}>Seleccionar Todos</button>
+                            <button className="text-amber-600 cursor-pointer hover:underline" onClick={() => setExcludedClients(new Set())}>Seleccionar Todos</button>
                         </div>
                         <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
                             {clientes.map(client => (
-                                <div key={client.id} onClick={() => toggleExclusion(client.id)} className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-all ${excludedClients.has(client.id) ? 'hover:bg-slate-100 opacity-50' : 'bg-white shadow-sm border border-indigo-100 ring-1 ring-indigo-500/10'}`}>
-                                    <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors shrink-0 ${excludedClients.has(client.id) ? 'border-slate-300 bg-slate-50' : 'bg-indigo-500 border-indigo-500'}`}>
+                                <div key={client.id} onClick={() => toggleExclusion(client.id)} className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-all ${excludedClients.has(client.id) ? 'hover:bg-slate-100 opacity-50' : 'bg-white shadow-sm border border-amber-100 ring-1 ring-amber-500/10'}`}>
+                                    <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors shrink-0 ${excludedClients.has(client.id) ? 'border-slate-300 bg-slate-50' : 'bg-amber-500 border-amber-500'}`}>
                                         {!excludedClients.has(client.id) && <Check size={12} className="text-white" />}
                                     </div>
                                     <span className={`text-sm font-medium min-w-0 truncate ${excludedClients.has(client.id) ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{client.empresa}</span>
@@ -434,7 +434,7 @@ const ClientsPage = () => {
                 </div>
                 <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
                     <button onClick={() => setGlobalTaskModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-200 rounded-xl transition-colors text-sm">Cancelar</button>
-                    <button onClick={handleGlobalTaskSubmit} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all flex items-center gap-2 text-sm">
+                    <button onClick={handleGlobalTaskSubmit} className="px-5 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all flex items-center gap-2 text-sm">
                         <Send size={16} />
                         Asignar Tarea
                     </button>
@@ -452,7 +452,7 @@ const ClientsPage = () => {
                     <div>
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Descripción del Pendiente</label>
                         <textarea
-                            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-blue-500 outline-none text-slate-700 font-mono resize-none transition-all"
+                            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-emerald-500 outline-none text-slate-700 font-mono resize-none transition-all"
                             value={convertData.descripcion}
                             onChange={e => setConvertData({ ...convertData, descripcion: e.target.value })}
                             placeholder="Observaciones:\nTareas:\n- "
@@ -462,22 +462,22 @@ const ClientsPage = () => {
                     </div>
                     <div>
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Email Notificación</label>
-                        <input className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-blue-500 outline-none text-slate-700 transition-all" value={convertData.email} onChange={e => setConvertData({ ...convertData, email: e.target.value })} placeholder="correo@ejemplo.com" />
+                        <input className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-emerald-500 outline-none text-slate-700 transition-all" value={convertData.email} onChange={e => setConvertData({ ...convertData, email: e.target.value })} placeholder="correo@ejemplo.com" />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Días Antelación</label>
-                            <input type="number" min="1" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-blue-500 outline-none text-slate-700 transition-all" value={convertData.dias} onChange={e => setConvertData({ ...convertData, dias: e.target.value })} />
+                            <input type="number" min="1" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-emerald-500 outline-none text-slate-700 transition-all" value={convertData.dias} onChange={e => setConvertData({ ...convertData, dias: e.target.value })} />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Fecha Límite</label>
-                            <input type="date" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-blue-500 outline-none text-slate-700 transition-all" value={convertData.fecha} onChange={e => setConvertData({ ...convertData, fecha: e.target.value })} />
+                            <input type="date" className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:border-emerald-500 outline-none text-slate-700 transition-all" value={convertData.fecha} onChange={e => setConvertData({ ...convertData, fecha: e.target.value })} />
                         </div>
                     </div>
                 </div>
                 <div className="flex justify-end gap-2 p-5 border-t border-slate-100">
                     <button onClick={() => setConvertModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">Cancelar</button>
-                    <button onClick={handleConvertToPending} className="px-5 py-2 text-sm font-bold bg-blue-600 text-white rounded-xl hover:bg-blue-500 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">Generar</button>
+                    <button onClick={handleConvertToPending} className="px-5 py-2 text-sm font-bold bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">Generar</button>
                 </div>
             </Modal>
         </div>
@@ -488,17 +488,17 @@ const ClientsPage = () => {
 const ClientRow = ({ client, displayStatus, isExpanded, onExpand, onEdit, onDelete, onConvert, onTasksUpdate }) => (
     <div className="group bg-white hover:bg-slate-50 transition-colors">
         <div
-            className={`flex flex-col md:grid md:grid-cols-12 px-5 py-3.5 gap-3 md:gap-4 items-start md:items-center cursor-pointer ${isExpanded ? 'bg-blue-50/50' : ''}`}
+            className={`flex flex-col md:grid md:grid-cols-12 px-5 py-3.5 gap-3 md:gap-4 items-start md:items-center cursor-pointer ${isExpanded ? 'bg-emerald-50/50' : ''}`}
             onClick={onExpand}
         >
             {/* Company name */}
             <div className="w-full md:col-span-4 font-bold text-slate-700 flex items-center justify-between md:justify-start gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                     {isExpanded
-                        ? <ChevronDown size={16} className="text-blue-500 shrink-0" />
+                        ? <ChevronDown size={16} className="text-emerald-500 shrink-0" />
                         : <div className="w-4 h-4 shrink-0" />
                     }
-                    <span className="bg-blue-600/10 text-blue-700 px-2 py-0.5 rounded uppercase text-sm font-bold truncate">{client.empresa}</span>
+                    <span className="bg-emerald-600/10 text-emerald-700 px-2 py-0.5 rounded uppercase text-sm font-bold truncate">{client.empresa}</span>
                 </div>
                 {/* Mobile badge */}
                 <Badge status={displayStatus} className="md:hidden shrink-0" size="xs" />
@@ -532,7 +532,7 @@ const ClientRow = ({ client, displayStatus, isExpanded, onExpand, onEdit, onDele
 
             {/* Actions */}
             <div className="w-full md:col-span-1 flex justify-end gap-1.5 mt-1 md:mt-0 pt-2 border-t border-slate-100 md:border-t-0 md:pt-0" onClick={e => e.stopPropagation()}>
-                <button onClick={onConvert} className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" title="Convertir a Pendientes">
+                <button onClick={onConvert} className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors" title="Convertir a Pendientes">
                     <CheckSquare size={16} />
                 </button>
                 <button onClick={onEdit} className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors">
@@ -555,7 +555,7 @@ const ClientRow = ({ client, displayStatus, isExpanded, onExpand, onEdit, onDele
                 >
                     <div className="p-4 md:p-5 md:pl-12">
                         <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2 text-xs uppercase tracking-wider">
-                            <FileSpreadsheet size={14} className="text-blue-500" />
+                            <FileSpreadsheet size={14} className="text-emerald-500" />
                             Lista de Tareas
                         </h4>
                         <ClientTaskList client={client} onUpdate={onTasksUpdate} />
@@ -622,7 +622,7 @@ const ClientTaskList = ({ client, onUpdate }) => {
                         ? <span className="text-slate-400 text-sm italic">No hay tareas registradas.</span>
                         : tasks.map(task => (
                             <div key={task.id} className="flex items-center gap-3 group">
-                                <button onClick={() => toggleTask(task)} className={task.completed ? 'text-emerald-500 shrink-0' : 'text-slate-300 hover:text-blue-500 shrink-0'}>
+                                <button onClick={() => toggleTask(task)} className={task.completed ? 'text-emerald-500 shrink-0' : 'text-slate-300 hover:text-emerald-500 shrink-0'}>
                                     {task.completed ? <CheckSquare size={17} /> : <Square size={17} />}
                                 </button>
                                 <span className={`text-sm flex-1 min-w-0 ${task.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{task.description}</span>
@@ -640,7 +640,7 @@ const ClientTaskList = ({ client, onUpdate }) => {
                     value={newTaskDesc}
                     onChange={e => setNewTaskDesc(e.target.value)}
                 />
-                <button type="submit" className="text-xs font-bold text-blue-600 hover:text-blue-500 uppercase shrink-0">Agregar</button>
+                <button type="submit" className="text-xs font-bold text-emerald-600 hover:text-emerald-500 uppercase shrink-0">Agregar</button>
             </form>
         </div>
     );

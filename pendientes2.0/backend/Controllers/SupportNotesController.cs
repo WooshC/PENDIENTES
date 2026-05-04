@@ -13,12 +13,14 @@ public class SupportNotesController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IWebHostEnvironment _environment;
+    private readonly IConfiguration _configuration;
     private readonly long _maxFileSize = 5 * 1024 * 1024; // 5MB
 
-    public SupportNotesController(AppDbContext context, IWebHostEnvironment environment)
+    public SupportNotesController(AppDbContext context, IWebHostEnvironment environment, IConfiguration configuration)
     {
         _context = context;
         _environment = environment;
+        _configuration = configuration;
     }
 
     // GET: api/supportnotes
@@ -37,7 +39,7 @@ public class SupportNotesController : ControllerBase
         var note = await _context.SupportNotes
             .Include(n => n.Images) // Incluir imágenes relacionadas
             .FirstOrDefaultAsync(n => n.Id == id);
-            
+
         if (note == null) return NotFound();
         return note;
     }
@@ -78,7 +80,7 @@ public class SupportNotesController : ControllerBase
         var note = await _context.SupportNotes
             .Include(n => n.Images)
             .FirstOrDefaultAsync(n => n.Id == id);
-            
+
         if (note == null) return NotFound();
 
         // Borrar archivos físicos de imágenes antes de borrar la nota
@@ -118,14 +120,15 @@ public class SupportNotesController : ControllerBase
             return BadRequest("Solo se permiten imágenes (JPEG, PNG, GIF, WebP)");
 
         // Crear carpeta: wwwroot/uploads/support-notes/{noteId}/
-        var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", "support-notes", noteId.ToString());
-        if (!Directory.Exists(uploadsFolder))
+        var uploadPath = _configuration["ImageStorage:UploadPath"] ?? "uploads/support-notes";
+        var uploadsFolder = Path.Combine(_environment.WebRootPath, uploadPath, noteId.ToString()); if (!Directory.Exists(uploadsFolder))
             Directory.CreateDirectory(uploadsFolder);
 
         // Nombre único preservando extensión
         var extension = Path.GetExtension(file.FileName).ToLower();
         var uniqueFileName = $"{Guid.NewGuid():N}{extension}";
-        var relativePath = $"/uploads/support-notes/{noteId}/{uniqueFileName}";
+        var uploadPath2 = _configuration["ImageStorage:UploadPath"] ?? "uploads/support-notes";
+        var relativePath = $"/{uploadPath2}/{noteId}/{uniqueFileName}";
         var fullPath = Path.Combine(uploadsFolder, uniqueFileName);
 
         // Guardar archivo físico
@@ -148,8 +151,8 @@ public class SupportNotesController : ControllerBase
         await _context.SaveChangesAsync();
 
         // Retornar URL que el frontend insertará como <img src="...">
-        return Ok(new 
-        { 
+        return Ok(new
+        {
             id = image.Id,
             url = $"/api/supportnotes/images/{image.Id}",
             fileName = image.FileName
@@ -165,7 +168,7 @@ public class SupportNotesController : ControllerBase
         if (image == null) return NotFound();
 
         var fullPath = Path.Combine(_environment.WebRootPath, image.FilePath.TrimStart('/'));
-        
+
         if (!System.IO.File.Exists(fullPath))
             return NotFound("Archivo no encontrado en disco");
 
@@ -206,7 +209,7 @@ public class SupportNotesController : ControllerBase
         var images = await _context.SupportNoteImages
             .Where(i => i.SupportNoteId == noteId)
             .ToListAsync();
-            
+
         return images;
     }
 
@@ -223,10 +226,10 @@ public class SupportNotesController : ControllerBase
         note.UpdatedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
         await _context.SaveChangesAsync();
-        
+
         // Opcional: Limpiar imágenes huérfanas (que ya no aparecen en el HTML)
         await CleanOrphanImages(id, dto.Content);
-        
+
         return Ok(new { message = "Contenido actualizado" });
     }
 
@@ -253,7 +256,7 @@ public class SupportNotesController : ControllerBase
             var fullPath = Path.Combine(_environment.WebRootPath, orphan.FilePath.TrimStart('/'));
             if (System.IO.File.Exists(fullPath))
                 System.IO.File.Delete(fullPath);
-                
+
             _context.SupportNoteImages.Remove(orphan);
         }
 
