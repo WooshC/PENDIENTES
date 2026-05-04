@@ -36,15 +36,15 @@ const RetroModal = ({ pendiente, tasks, onSave, onClose }) => {
                 initial={{ opacity: 0, scale: 0.92, y: 24 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.92, y: 24 }}
-                className="bg-slate-900 border border-indigo-500/30 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
+                className="bg-slate-900 border border-amber-500/30 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
             >
-                <div className="bg-gradient-to-r from-indigo-600/20 to-purple-600/20 border-b border-indigo-500/20 p-5 flex items-center gap-3">
-                    <div className="p-2 bg-indigo-500/20 rounded-xl shrink-0">
-                        <Sparkles size={20} className="text-indigo-300" />
+                <div className="bg-gradient-to-r from-amber-600/20 to-purple-600/20 border-b border-amber-500/20 p-5 flex items-center gap-3">
+                    <div className="p-2 bg-amber-500/20 rounded-xl shrink-0">
+                        <Sparkles size={20} className="text-amber-300" />
                     </div>
                     <div className="flex-1 min-w-0">
                         <h2 className="font-bold text-white text-lg">Retroalimentación</h2>
-                        <p className="text-indigo-300/70 text-xs mt-0.5">Se guardará como nota de soporte</p>
+                        <p className="text-amber-300/70 text-xs mt-0.5">Se guardará como nota de soporte</p>
                     </div>
                     <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors shrink-0">
                         <X size={20} />
@@ -54,7 +54,7 @@ const RetroModal = ({ pendiente, tasks, onSave, onClose }) => {
                     <div>
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Título</label>
                         <input
-                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all text-sm"
                             value={title}
                             onChange={e => setTitle(e.target.value)}
                         />
@@ -62,7 +62,7 @@ const RetroModal = ({ pendiente, tasks, onSave, onClose }) => {
                     <div>
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Descripción</label>
                         <textarea
-                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm font-mono resize-none h-40"
+                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all text-sm font-mono resize-none h-40"
                             value={content}
                             onChange={e => setContent(e.target.value)}
                         />
@@ -76,7 +76,7 @@ const RetroModal = ({ pendiente, tasks, onSave, onClose }) => {
                         </button>
                         <button
                             onClick={() => onSave(title, content)}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 transition-all active:scale-95 text-sm"
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-bold shadow-lg shadow-amber-500/20 transition-all active:scale-95 text-sm"
                         >
                             <BookOpen size={15} />
                             Guardar Nota de Soporte
@@ -104,8 +104,8 @@ const GlobalExcludeModal = ({ clientes, onConfirm, onClose }) => {
                 initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }}
                 className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
             >
-                <div className="bg-indigo-600/10 border-b border-slate-700 p-4 flex items-center gap-3">
-                    <Globe size={18} className="text-indigo-400 shrink-0" />
+                <div className="bg-amber-600/10 border-b border-slate-700 p-4 flex items-center gap-3">
+                    <Globe size={18} className="text-amber-400 shrink-0" />
                     <div className="flex-1 min-w-0">
                         <h2 className="font-bold text-white">Tarea Global</h2>
                         <p className="text-slate-400 text-xs mt-0.5">Elige qué clientes EXCLUIR</p>
@@ -116,7 +116,7 @@ const GlobalExcludeModal = ({ clientes, onConfirm, onClose }) => {
                     {clientes.map(c => (
                         <div key={c.id} onClick={() => toggle(c.id)}
                             className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all ${excluded.has(c.id) ? 'opacity-40' : 'bg-slate-800/50'}`}>
-                            <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors shrink-0 ${excluded.has(c.id) ? 'border-slate-600 bg-slate-800' : 'bg-indigo-500 border-indigo-500'}`}>
+                            <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors shrink-0 ${excluded.has(c.id) ? 'border-slate-600 bg-slate-800' : 'bg-amber-500 border-amber-500'}`}>
                                 {!excluded.has(c.id) && <Check size={12} className="text-white" />}
                             </div>
                             <span className="text-sm font-medium text-slate-200 min-w-0 truncate">{c.empresa}</span>
@@ -127,7 +127,7 @@ const GlobalExcludeModal = ({ clientes, onConfirm, onClose }) => {
                     <button onClick={onClose} className="px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors">Cancelar</button>
                     <button
                         onClick={() => onConfirm(Array.from(excluded))}
-                        className="flex-1 py-2 text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-all active:scale-95"
+                        className="flex-1 py-2 text-sm font-bold bg-amber-600 hover:bg-amber-500 text-white rounded-xl transition-all active:scale-95"
                     >
                         Confirmar ({clientes.length - excluded.size} clientes)
                     </button>
@@ -249,8 +249,8 @@ const TaskPanel = ({ pendiente, onTasksChange, onComplete }) => {
                 </div>
 
                 {pendiente.observaciones && (
-                    <div className="bg-blue-500/5 border border-blue-500/15 rounded-xl p-3 text-xs text-slate-400 leading-relaxed whitespace-pre-wrap mt-2">
-                        <span className="font-bold text-blue-400 uppercase tracking-wider text-[10px]">Observaciones · </span>
+                    <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl p-3 text-xs text-slate-400 leading-relaxed whitespace-pre-wrap mt-2">
+                        <span className="font-bold text-emerald-400 uppercase tracking-wider text-[10px]">Observaciones · </span>
                         {pendiente.observaciones}
                     </div>
                 )}
@@ -269,7 +269,7 @@ const TaskPanel = ({ pendiente, onTasksChange, onComplete }) => {
                     </div>
                     <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
                         <motion.div
-                            className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full"
+                            className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full"
                             animate={{ width: `${tasks.length > 0 ? (completedCount / tasks.length) * 100 : 0}%` }}
                             transition={{ duration: 0.5 }}
                         />
@@ -302,7 +302,7 @@ const TaskPanel = ({ pendiente, onTasksChange, onComplete }) => {
                             >
                                 <button
                                     onClick={() => toggleTask(task)}
-                                    className={`mt-0.5 shrink-0 transition-colors ${task.completed ? 'text-emerald-400' : 'text-slate-600 hover:text-blue-400'}`}
+                                    className={`mt-0.5 shrink-0 transition-colors ${task.completed ? 'text-emerald-400' : 'text-slate-600 hover:text-emerald-400'}`}
                                 >
                                     {task.completed ? <CheckSquare size={17} /> : <Square size={17} />}
                                 </button>
@@ -311,7 +311,7 @@ const TaskPanel = ({ pendiente, onTasksChange, onComplete }) => {
                                     <div className="flex-1 flex gap-2 min-w-0">
                                         <input
                                             autoFocus
-                                            className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-2 py-1 text-sm text-white outline-none focus:border-blue-500 min-w-0"
+                                            className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-2 py-1 text-sm text-white outline-none focus:border-emerald-500 min-w-0"
                                             value={editDesc}
                                             onChange={e => setEditDesc(e.target.value)}
                                             onKeyDown={e => {
@@ -319,7 +319,7 @@ const TaskPanel = ({ pendiente, onTasksChange, onComplete }) => {
                                                 if (e.key === 'Escape') setEditingId(null);
                                             }}
                                         />
-                                        <button onClick={() => saveEdit(task)} className="text-blue-400 hover:text-blue-300 text-xs font-bold px-2 shrink-0">✓</button>
+                                        <button onClick={() => saveEdit(task)} className="text-emerald-400 hover:text-emerald-300 text-xs font-bold px-2 shrink-0">✓</button>
                                         <button onClick={() => setEditingId(null)} className="text-slate-500 hover:text-white text-xs px-1 shrink-0">✕</button>
                                     </div>
                                 ) : (
@@ -332,7 +332,7 @@ const TaskPanel = ({ pendiente, onTasksChange, onComplete }) => {
                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                                         <button
                                             onClick={() => { setEditingId(task.id); setEditDesc(task.description); }}
-                                            className="p-1 text-slate-500 hover:text-blue-400 rounded-lg transition-colors"
+                                            className="p-1 text-slate-500 hover:text-emerald-400 rounded-lg transition-colors"
                                         >
                                             <Edit2 size={13} />
                                         </button>
@@ -356,7 +356,7 @@ const TaskPanel = ({ pendiente, onTasksChange, onComplete }) => {
                     <form onSubmit={handleAdd} className="flex gap-2">
                         <textarea
                             ref={inputRef}
-                            className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 resize-none transition-all min-w-0"
+                            className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 resize-none transition-all min-w-0"
                             placeholder="Nueva tarea (Enter = agregar, Shift+Enter = nueva línea para varias)"
                             value={newDesc}
                             onChange={e => setNewDesc(e.target.value)}
@@ -368,7 +368,7 @@ const TaskPanel = ({ pendiente, onTasksChange, onComplete }) => {
                                 }
                             }}
                         />
-                        <button type="submit" className="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-all active:scale-95 shrink-0">
+                        <button type="submit" className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-all active:scale-95 shrink-0">
                             <Plus size={18} />
                         </button>
                     </form>
@@ -510,7 +510,7 @@ const PendingPage = () => {
         toast.custom((t) => (
             <div className="flex flex-col w-[360px] bg-slate-900 border border-slate-700 shadow-2xl rounded-2xl overflow-hidden">
                 <div className="bg-slate-800/50 p-4 border-b border-slate-700/50 flex items-center gap-3">
-                    <div className="p-2 bg-blue-500/10 text-blue-400 rounded-lg ring-1 ring-blue-500/20 shrink-0">
+                    <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg ring-1 ring-emerald-500/20 shrink-0">
                         <Send size={15} />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -543,7 +543,7 @@ const PendingPage = () => {
                         } catch (error) {
                             toast.error(error.response?.data?.error || 'Error', { id: id2 });
                         }
-                    }} className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-lg flex items-center gap-2 transition-all">
+                    }} className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg flex items-center gap-2 transition-all">
                         <Send size={13} /> Enviar
                     </button>
                 </div>
@@ -614,7 +614,7 @@ const PendingPage = () => {
                 </div>
                 <button
                     onClick={() => openModal()}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/25 transition-all active:scale-95 font-medium text-sm"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/25 transition-all active:scale-95 font-medium text-sm"
                 >
                     <Plus size={17} />
                     Nuevo Pendiente
@@ -648,10 +648,10 @@ const PendingPage = () => {
                                     <button
                                         key={item.id}
                                         onClick={() => setSelectedId(item.id)}
-                                        className={`w-full text-left p-4 transition-all hover:bg-slate-800/50 group relative ${selectedId === item.id ? 'bg-blue-600/10 border-l-2 border-blue-500' : 'border-l-2 border-transparent'}`}
+                                        className={`w-full text-left p-4 transition-all hover:bg-slate-800/50 group relative ${selectedId === item.id ? 'bg-emerald-600/10 border-l-2 border-emerald-500' : 'border-l-2 border-transparent'}`}
                                     >
                                         {selectedId === item.id && (
-                                            <ChevronRight size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-400" />
+                                            <ChevronRight size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400" />
                                         )}
                                         <div className="flex items-start justify-between gap-2 pr-4">
                                             <span className={`text-sm font-semibold leading-snug ${selectedId === item.id ? 'text-white' : 'text-slate-300'}`}>
@@ -677,7 +677,7 @@ const PendingPage = () => {
                                                     <Send size={12} />
                                                 </button>
                                             )}
-                                            <button onClick={() => openModal(item)} className="p-1 text-slate-500 hover:text-blue-400 rounded transition-colors">
+                                            <button onClick={() => openModal(item)} className="p-1 text-slate-500 hover:text-emerald-400 rounded transition-colors">
                                                 <Edit2 size={12} />
                                             </button>
                                             <button onClick={() => handleDelete(item.id)} className="p-1 text-slate-500 hover:text-red-400 rounded transition-colors">
@@ -725,8 +725,8 @@ const PendingPage = () => {
                             <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950">
                                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                                     {editingItem
-                                        ? <Edit2 size={17} className="text-blue-400" />
-                                        : <Plus size={17} className="text-blue-400" />
+                                        ? <Edit2 size={17} className="text-emerald-400" />
+                                        : <Plus size={17} className="text-emerald-400" />
                                     }
                                     {editingItem ? 'Editar Pendiente' : 'Nuevo Pendiente'}
                                 </h2>
@@ -740,7 +740,7 @@ const PendingPage = () => {
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Actividad / Asunto</label>
                                     <input
                                         autoFocus required
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white font-medium focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all"
                                         placeholder="Ej: Renovar dominio cliente X"
                                         value={formData.actividad}
                                         onChange={e => setFormData({ ...formData, actividad: e.target.value })}
@@ -753,7 +753,7 @@ const PendingPage = () => {
                                         <span className="text-slate-600 font-normal normal-case">(vacío = global)</span>
                                     </label>
                                     <select
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:border-blue-500 outline-none transition-all appearance-none"
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:border-emerald-500 outline-none transition-all appearance-none"
                                         value={formData.empresa}
                                         onChange={e => setFormData({ ...formData, empresa: e.target.value })}
                                     >
@@ -767,7 +767,7 @@ const PendingPage = () => {
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Estado</label>
                                     <select
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:border-blue-500 outline-none appearance-none"
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:border-emerald-500 outline-none appearance-none"
                                         value={formData.estado}
                                         onChange={e => setFormData({ ...formData, estado: e.target.value })}
                                     >
@@ -780,7 +780,7 @@ const PendingPage = () => {
                                 <div className="md:col-span-2 space-y-1.5">
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Observaciones</label>
                                     <textarea
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 focus:border-blue-500 outline-none h-20 resize-none transition-all placeholder-slate-600"
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 focus:border-emerald-500 outline-none h-20 resize-none transition-all placeholder-slate-600"
                                         placeholder="Contexto, detalles adicionales..."
                                         value={formData.observaciones || ''}
                                         onChange={e => setFormData({ ...formData, observaciones: e.target.value })}
@@ -794,7 +794,7 @@ const PendingPage = () => {
                                             <span className="text-slate-600 font-normal normal-case">(una por línea)</span>
                                         </label>
                                         <textarea
-                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 focus:border-blue-500 outline-none h-24 resize-none font-mono text-sm placeholder-slate-600 transition-all"
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 focus:border-emerald-500 outline-none h-24 resize-none font-mono text-sm placeholder-slate-600 transition-all"
                                             placeholder={"- Instalar actualizaciones\n- Revisar backups\n- Verificar SSL"}
                                             value={taskLines}
                                             onChange={e => setTaskLines(e.target.value)}
@@ -807,10 +807,10 @@ const PendingPage = () => {
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha Límite</label>
                                     <div className="relative">
-                                        <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500" size={15} />
+                                        <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500" size={15} />
                                         <input
                                             type="date"
-                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-4 py-2.5 focus:border-blue-500 outline-none [color-scheme:dark] text-slate-200"
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-4 py-2.5 focus:border-emerald-500 outline-none [color-scheme:dark] text-slate-200"
                                             value={formData.fecha_limite}
                                             onChange={e => setFormData({ ...formData, fecha_limite: e.target.value })}
                                         />
@@ -821,7 +821,7 @@ const PendingPage = () => {
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Días Anticipación</label>
                                     <input
                                         type="number" min="0"
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 focus:border-blue-500 outline-none text-slate-200"
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 focus:border-emerald-500 outline-none text-slate-200"
                                         value={formData.dias_antes_notificacion}
                                         onChange={e => setFormData({ ...formData, dias_antes_notificacion: parseInt(e.target.value) })}
                                     />
@@ -830,7 +830,7 @@ const PendingPage = () => {
                                 <div className="space-y-1.5">
                                     <div className="flex justify-between items-center">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email Notificación</label>
-                                        <button type="button" onClick={() => setShowCC(!showCC)} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                                        <button type="button" onClick={() => setShowCC(!showCC)} className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors">
                                             {showCC ? 'Ocultar CC' : '+ CC'}
                                         </button>
                                     </div>
@@ -839,7 +839,7 @@ const PendingPage = () => {
                                         <input
                                             type="email"
                                             placeholder="correo@ejemplo.com"
-                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-4 py-2.5 focus:border-blue-500 outline-none text-slate-200"
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-4 py-2.5 focus:border-emerald-500 outline-none text-slate-200"
                                             value={formData.email_notificacion}
                                             onChange={e => setFormData({ ...formData, email_notificacion: e.target.value })}
                                         />
@@ -852,7 +852,7 @@ const PendingPage = () => {
                                         <input
                                             type="text"
                                             placeholder="cc1@mail.com, cc2@mail.com"
-                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 focus:border-blue-500 outline-none text-slate-200"
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 focus:border-emerald-500 outline-none text-slate-200"
                                             value={formData.cc_emails || ''}
                                             onChange={e => setFormData({ ...formData, cc_emails: e.target.value })}
                                         />
@@ -863,7 +863,7 @@ const PendingPage = () => {
                                     <button type="button" onClick={() => setModalOpen(false)} className="px-5 py-2.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors font-medium text-sm">
                                         Cancelar
                                     </button>
-                                    <button type="submit" className="px-7 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-sm">
+                                    <button type="submit" className="px-7 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all text-sm">
                                         {editingItem ? 'Guardar Cambios' : 'Crear Pendiente'}
                                     </button>
                                 </div>

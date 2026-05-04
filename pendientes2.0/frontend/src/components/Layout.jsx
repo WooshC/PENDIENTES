@@ -8,7 +8,7 @@ const Layout = ({ children }) => {
             {/* Desktop Sidebar */}
             <aside className="w-64 bg-slate-950 border-r border-slate-800 flex-shrink-0 fixed h-full z-10 hidden md:flex flex-col">
                 <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
                         <CheckCircle2 size={20} className="text-white" />
                     </div>
                     <span className="text-xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
@@ -50,7 +50,7 @@ const NavItem = ({ to, icon, label, end }) => (
         end={end}
         className={({ isActive }) =>
             `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${isActive
-                ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20'
+                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                 : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200 border border-transparent'
             }`
         }
@@ -66,7 +66,7 @@ const MobileNavItem = ({ to, icon, label, end }) => (
         end={end}
         className={({ isActive }) =>
             `flex flex-col items-center justify-center gap-1 px-4 py-1.5 rounded-xl transition-all duration-200 min-w-0 ${isActive
-                ? 'text-blue-400'
+                ? 'text-emerald-400'
                 : 'text-slate-500 hover:text-slate-300'
             }`
         }
@@ -78,7 +78,7 @@ const MobileNavItem = ({ to, icon, label, end }) => (
                 </span>
                 <span className="text-[10px] font-semibold truncate">{label}</span>
                 {isActive && (
-                    <span className="absolute -top-0.5 w-8 h-0.5 bg-blue-400 rounded-full" />
+                    <span className="absolute -top-0.5 w-8 h-0.5 bg-emerald-400 rounded-full" />
                 )}
             </>
         )}

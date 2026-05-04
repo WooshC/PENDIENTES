@@ -22,3 +22,49 @@
         border-radius: 20px;
     }
 }
+
+/* TipTap Image Resize extension styles */
+.image-resizer {
+    display: inline-block;
+    position: relative;
+    flex-grow: 0;
+    line-height: 0;
+    max-width: 100%;
+}
+
+.image-resizer img {
+    display: block;
+    border-radius: 8px;
+    cursor: default;
+}
+
+.image-resizer .resize-trigger {
+    position: absolute;
+    right: -6px;
+    bottom: -6px;
+    width: 14px;
+    height: 14px;
+    background-color: #10b981;
+    border: 2px solid #0f172a;
+    border-radius: 50%;
+    cursor: nwse-resize;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.15s ease;
+    z-index: 10;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+}
+
+.image-resizer:hover .resize-trigger {
+    opacity: 1;
+}
+
+.image-resizer .resize-trigger:hover {
+    transform: scale(1.2);
+    background-color: #34d399;
+}
+
+/* Selected image highlight */
+.ProseMirror .image-resizer.ProseMirror-selectednode img {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+}

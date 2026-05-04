@@ -22,7 +22,7 @@ const SearchInput = ({ value, onChange, placeholder = 'Buscar...', dark = false,
     }
 
     return (
-        <div className={`bg-white border border-slate-200 rounded-xl px-4 py-2.5 flex items-center gap-3 shadow-sm focus-within:ring-2 focus-within:ring-blue-500/20 transition-all ${className}`}>
+        <div className={`bg-white border border-slate-200 rounded-xl px-4 py-2.5 flex items-center gap-3 shadow-sm focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all ${className}`}>
             <Search className="text-slate-400 shrink-0" size={18} />
             <input
                 type="text"

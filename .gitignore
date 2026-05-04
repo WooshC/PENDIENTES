@@ -26,3 +26,4 @@ appsettings.local.json
 *.user
 **/Backups/
 *.sln
+/pendientes2.0/backend/wwwroot/uploads/support-notes
