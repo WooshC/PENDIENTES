@@ -27,17 +27,7 @@ public class AppDbContext : DbContext
             .Property(p => p.DiasAntesNotificacion)
             .HasDefaultValue(3);
 
-        modelBuilder.Entity<Cliente>()
-            .Property(c => c.CheckEstado)
-            .HasConversion<int>();
 
-        modelBuilder.Entity<ClientTask>()
-            .Property(t => t.Completed)
-            .HasConversion<int>();
-
-        modelBuilder.Entity<PendienteTask>()
-            .Property(t => t.Completed)
-            .HasConversion<int>();
 
         modelBuilder.Entity<SupportNote>()
             .HasMany(n => n.Images)

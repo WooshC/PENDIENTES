@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, CheckCircle2, StickyNote } from 'lucide-react';
+import { LayoutDashboard, Users, CheckCircle2, StickyNote, Wrench } from 'lucide-react';
 
 const Layout = ({ children }) => {
     return (
@@ -20,6 +20,7 @@ const Layout = ({ children }) => {
                     <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Pendientes" end />
                     <NavItem to="/clientes" icon={<Users size={20} />} label="Clientes" />
                     <NavItem to="/notas" icon={<StickyNote size={20} />} label="Notas Soporte" />
+                    <NavItem to="/herramientas" icon={<Wrench size={20} />} label="Herramientas" />
                 </nav>
 
                 <div className="p-4 border-t border-slate-800 text-xs text-slate-500 text-center">
@@ -32,6 +33,7 @@ const Layout = ({ children }) => {
                 <MobileNavItem to="/" icon={<LayoutDashboard size={22} />} label="Pendientes" end />
                 <MobileNavItem to="/clientes" icon={<Users size={22} />} label="Clientes" />
                 <MobileNavItem to="/notas" icon={<StickyNote size={22} />} label="Notas" />
+                <MobileNavItem to="/herramientas" icon={<Wrench size={22} />} label="Herramientas" />
             </nav>
 
             {/* Main Content */}

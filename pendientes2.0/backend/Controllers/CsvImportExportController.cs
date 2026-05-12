@@ -368,7 +368,7 @@ public class CsvImportExportController : ControllerBase
 
     private static string? GetString(string[] row, string[] headers, string col)
     {
-        var idx = Array.IndexOf(headers, col);
+        var idx = Array.FindIndex(headers, h => h.Equals(col, StringComparison.OrdinalIgnoreCase));
         if (idx < 0 || idx >= row.Length) return null;
         var v = row[idx].Trim();
         return string.IsNullOrEmpty(v) ? null : v;
@@ -377,6 +377,8 @@ public class CsvImportExportController : ControllerBase
     private static int? GetInt(string[] row, string[] headers, string col)
     {
         var s = GetString(row, headers, col);
+        if (s == null) return null;
+        if (bool.TryParse(s, out var b)) return b ? 1 : 0;
         return int.TryParse(s, out var n) ? n : null;
     }
 }

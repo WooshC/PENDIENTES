@@ -119,13 +119,8 @@ public class DatabaseBackupService : BackgroundService
             throw;
         }
 
-        // Mantener también el .bak de SQLite por seguridad si es SQLite
-        var connectionString = _configuration.GetConnectionString("DefaultConnection");
-        if (connectionString?.Contains(".db") == true || connectionString?.Contains("Data Source") == true)
-        {
-            var bakPath = Path.Combine(backupDir, $"db_full_{timestamp}.bak");
-            await context.Database.ExecuteSqlRawAsync($"VACUUM INTO '{bakPath}'");
-        }
+        // Nota: el respaldo .bak de SQLite fue removido tras la migración a SQL Server.
+        // El respaldo CSV es el mecanismo principal de backup.
     }
 
     private async Task SaveToCsv<T>(string filePath, List<T> data, Func<T, object?[]> selector)
@@ -134,15 +129,15 @@ public class DatabaseBackupService : BackgroundService
 
         var sb = new StringBuilder();
         
-        // Cabeceras (usando propiedades de la clase T)
-        var properties = typeof(T).GetProperties().Select(p => p.Name);
+        // Cabeceras en snake_case para compatibilidad con el importador
+        var properties = typeof(T).GetProperties().Select(p => ToSnakeCase(p.Name));
         sb.AppendLine(string.Join(";", properties));
 
         foreach (var item in data)
         {
             var values = selector(item);
             var escapedValues = values.Select(v => {
-                var val = v?.ToString() ?? "";
+                var val = v is bool b ? (b ? "1" : "0") : (v?.ToString() ?? "");
                 val = val.Replace(";", ","); // Evitar conflicto con el separador
                 val = val.Replace("\r", " ").Replace("\n", " "); // Evitar saltos de línea
                 return val;
@@ -151,5 +146,24 @@ public class DatabaseBackupService : BackgroundService
         }
 
         await File.WriteAllTextAsync(filePath, sb.ToString(), Encoding.UTF8);
+    }
+
+    private static string ToSnakeCase(string name)
+    {
+        var sb = new StringBuilder();
+        for (int i = 0; i < name.Length; i++)
+        {
+            var c = name[i];
+            if (char.IsUpper(c))
+            {
+                if (i > 0) sb.Append('_');
+                sb.Append(char.ToLowerInvariant(c));
+            }
+            else
+            {
+                sb.Append(c);
+            }
+        }
+        return sb.ToString();
     }
 }

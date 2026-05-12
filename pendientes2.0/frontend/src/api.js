@@ -59,3 +59,15 @@ export const deleteNoteImage = (imageId) => api.delete(`/supportnotes/images/${i
 // AI
 export const askAi = (query) => api.post('/ai/ask', { query });
 export const getChatHistory = () => api.get('/ai/history');
+
+// Herramientas / Base de Datos
+export const triggerBackup = () => api.post('/database/backup');
+export const getDatabaseStatus = () => api.get('/database/status');
+export const exportCsv = (table) => api.get(`/database/export/${table}`, { responseType: 'blob' });
+export const importCsv = (table, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/database/import/${table}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    });
+};

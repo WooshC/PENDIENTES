@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Calendar, Plus, Save, Trash2, BrainCircuit,
     Send, StickyNote, Clock, ImageIcon, CheckCircle2,
-    Loader2
+    Loader2, Eye, AlignLeft, AlignCenter, AlignRight, X
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
@@ -10,6 +10,29 @@ import { format } from 'date-fns';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import ImageResize from 'tiptap-extension-resize-image';
+
+// Extensión custom para soportar alineación de imágenes
+const CustomImageResize = ImageResize.extend({
+    addAttributes() {
+        return {
+            ...this.parent?.(),
+            dataAlign: {
+                default: 'center',
+                parseHTML: element => element.getAttribute('data-align') || element.parentElement?.getAttribute('data-align'),
+                renderHTML: attributes => {
+                    if (!attributes.dataAlign) return {};
+                    return { 'data-align': attributes.dataAlign };
+                },
+            },
+        };
+    },
+    renderHTML({ node, HTMLAttributes }) {
+        const { dataAlign, ...rest } = HTMLAttributes;
+        const divAttrs = { class: 'image-resizer' };
+        if (dataAlign) divAttrs['data-align'] = dataAlign;
+        return ['div', divAttrs, ['img', rest]];
+    },
+});
 import {
     getSupportNotes, addSupportNote, updateSupportNote,
     deleteSupportNote, askAi, getChatHistory, uploadNoteImage
@@ -47,11 +70,10 @@ const SupportNotesPage = () => {
     const [mobileTab, setMobileTab] = useState('notes');
     const [noteTitle, setNoteTitle] = useState('');
     const [uploadingImage, setUploadingImage] = useState(false);
-    const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved'
+    const [lightboxImage, setLightboxImage] = useState(null);
+    const [imageToolbar, setImageToolbar] = useState(null); // { top, left } | null
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
-    const saveTimeoutRef = useRef(null);
-    const isAutosavingRef = useRef(false);
     const editorRef = useRef(null);
 
     // Función reutilizable para subir imagen e insertarla en el editor
@@ -92,7 +114,7 @@ const SupportNotesPage = () => {
     const editor = useEditor({
         extensions: [
             StarterKit,
-            ImageResize.configure({
+            CustomImageResize.configure({
                 inline: false,
                 allowBase64: false,
                 minWidth: 80,
@@ -102,7 +124,6 @@ const SupportNotesPage = () => {
         content: '',
         onUpdate: () => {
             handleBrokenImages();
-            triggerAutosave();
         },
         onCreate: () => handleBrokenImages(),
         editorProps: {
@@ -141,6 +162,31 @@ const SupportNotesPage = () => {
     });
     editorRef.current = editor;
 
+    // Detectar imagen seleccionada para mostrar toolbar flotante
+    useEffect(() => {
+        if (!editor) return;
+        const handleSelection = () => {
+            const selectedNode = document.querySelector('.ProseMirror .image-resizer.ProseMirror-selectednode, .ProseMirror img.ProseMirror-selectednode');
+            if (selectedNode) {
+                const rect = selectedNode.getBoundingClientRect();
+                setImageToolbar({ top: rect.top, left: rect.left + rect.width / 2 });
+            } else if (!editor.isActive('image')) {
+                setImageToolbar(null);
+            }
+        };
+        editor.on('selectionUpdate', handleSelection);
+        editor.on('focus', handleSelection);
+        return () => {
+            editor.off('selectionUpdate', handleSelection);
+            editor.off('focus', handleSelection);
+        };
+    }, [editor]);
+
+    const handleImageAlign = (align) => {
+        if (!editor) return;
+        editor.chain().focus().updateAttributes('image', { dataAlign: align }).run();
+    };
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
@@ -152,45 +198,7 @@ const SupportNotesPage = () => {
         fetchChatHistory();
     }, []);
 
-    // Autosave: debounce cuando cambia el título o contenido
-    const triggerAutosave = useCallback(() => {
-        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-        if (!selectedNote?.id) return;
 
-        setSaveStatus('idle');
-        saveTimeoutRef.current = setTimeout(async () => {
-            const content = editorRef.current?.getHTML() || '';
-            if (!content || content === '<p></p>') return;
-
-            try {
-                isAutosavingRef.current = true;
-                setSaveStatus('saving');
-                await updateSupportNote(selectedNote.id, {
-                    ...selectedNote,
-                    title: noteTitle || 'Nota sin título',
-                    content
-                });
-                setSaveStatus('saved');
-                // Refrescar lista silenciosamente para que el preview se actualice
-                fetchNotesSilent();
-                setTimeout(() => setSaveStatus('idle'), 2000);
-            } catch {
-                setSaveStatus('idle');
-            } finally {
-                isAutosavingRef.current = false;
-            }
-        }, 2000);
-    }, [selectedNote, noteTitle]);
-
-    useEffect(() => {
-        triggerAutosave();
-    }, [noteTitle, triggerAutosave]);
-
-    useEffect(() => {
-        return () => {
-            if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-        };
-    }, []);
 
     const fetchChatHistory = async () => {
         try {
@@ -339,23 +347,7 @@ const SupportNotesPage = () => {
         } catch { return '---'; }
     };
 
-    const renderSaveIndicator = () => {
-        if (saveStatus === 'saving') {
-            return (
-                <span className="flex items-center gap-1.5 text-[11px] text-amber-400/80 animate-pulse">
-                    <Loader2 size={12} className="animate-spin" /> Guardando...
-                </span>
-            );
-        }
-        if (saveStatus === 'saved') {
-            return (
-                <span className="flex items-center gap-1.5 text-[11px] text-emerald-400/80">
-                    <CheckCircle2 size={12} /> Guardado
-                </span>
-            );
-        }
-        return null;
-    };
+
 
     return (
         <div className="space-y-4 pb-2">
@@ -369,7 +361,7 @@ const SupportNotesPage = () => {
                     </h1>
                     <p className="text-slate-400 mt-0.5 text-xs md:text-sm">Registra y consulta el historial de soporte brindado.</p>
                 </div>
-                <button onClick={handleNewNote} className="self-start sm:self-auto flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-all shadow-lg shadow-emerald-500/20 font-medium text-sm active:scale-95">
+                <button onClick={handleNewNote} className="self-start sm:self-auto flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl transition-all shadow-lg shadow-amber-500/20 font-medium text-sm active:scale-95">
                     <Plus size={18} /> Nueva Nota
                 </button>
             </header>
@@ -379,7 +371,7 @@ const SupportNotesPage = () => {
                 <SearchInput dark value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Buscar en notas..." className="sm:col-span-2 py-2.5" />
                 <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} />
-                    <input type="date" className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-slate-300 text-sm" value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
+                    <input type="date" className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all text-slate-300 text-sm" value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
                 </div>
             </div>
 
@@ -391,7 +383,7 @@ const SupportNotesPage = () => {
                     { key: 'ai', label: 'IA', icon: <BrainCircuit size={15} /> },
                 ].map(tab => (
                     <button key={tab.key} onClick={() => setMobileTab(tab.key)}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold transition-all ${mobileTab === tab.key ? 'bg-emerald-500/10 text-emerald-400 border-b-2 border-emerald-500' : 'text-slate-500 hover:text-slate-300'}`}>
+                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold transition-all ${mobileTab === tab.key ? 'bg-amber-500/10 text-amber-400 border-b-2 border-amber-500' : 'text-slate-500 hover:text-slate-300'}`}>
                         {tab.icon}{tab.label}
                     </button>
                 ))}
@@ -414,9 +406,9 @@ const SupportNotesPage = () => {
                             filteredNotes.map((note) => (
                                 <motion.div key={note.id} layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
                                     onClick={() => handleSelectNote(note)}
-                                    className={`p-4 rounded-2xl border transition-all cursor-pointer group ${selectedNote?.id === note.id ? 'bg-emerald-500/10 border-emerald-500/50 shadow-lg shadow-emerald-500/5' : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'}`}>
+                                    className={`p-4 rounded-2xl border transition-all cursor-pointer group ${selectedNote?.id === note.id ? 'bg-amber-500/10 border-amber-500/50 shadow-lg shadow-amber-500/5' : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'}`}>
                                     <div className="flex justify-between items-start mb-1.5">
-                                        <h3 className={`font-semibold truncate pr-4 text-sm ${selectedNote?.id === note.id ? 'text-emerald-400' : 'text-slate-200'}`}>{note.title}</h3>
+                                        <h3 className={`font-semibold truncate pr-4 text-sm ${selectedNote?.id === note.id ? 'text-amber-400' : 'text-slate-200'}`}>{note.title}</h3>
                                         <span className="text-[10px] text-slate-500 flex items-center gap-1 shrink-0"><Clock size={10} />{formatDate(note.created_at)}</span>
                                     </div>
                                     <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">{note.content?.replace(/<[^>]*>/g, '') || ''}</p>
@@ -430,13 +422,14 @@ const SupportNotesPage = () => {
                 <div className={`lg:col-span-8 flex flex-col gap-4 ${mobileTab !== 'notes' ? 'block' : 'hidden lg:flex'}`}>
 
                     {/* Note Editor */}
-                    <div className={`${mobileTab === 'ai' ? 'hidden lg:flex' : 'flex'} flex-col bg-slate-900/50 border border-slate-800 rounded-2xl p-5 backdrop-blur-sm min-h-[300px] lg:min-h-[380px]`}>
+                    <div className={`${mobileTab === 'ai' ? 'hidden lg:flex' : 'flex'} flex-col bg-slate-900/50 border border-slate-800 rounded-2xl p-5 backdrop-blur-sm`}>
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400"><StickyNote size={18} /></div>
+                                <div className="p-2 bg-amber-500/10 rounded-lg text-amber-400"><StickyNote size={18} /></div>
                                 <div className="flex flex-col">
                                     <h2 className="text-lg font-semibold text-slate-100">{selectedNote ? 'Editar Nota' : 'Nueva Nota'}</h2>
-                                    {selectedNote && renderSaveIndicator()}
+
+
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -456,7 +449,7 @@ const SupportNotesPage = () => {
                                         <Trash2 size={18} />
                                     </button>
                                 )}
-                                <button onClick={handleSaveNote} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-all font-medium text-sm active:scale-95">
+                                <button onClick={handleSaveNote} className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl transition-all font-medium text-sm active:scale-95">
                                     <Save size={16} /> Guardar
                                 </button>
                             </div>
@@ -470,9 +463,31 @@ const SupportNotesPage = () => {
                             onChange={e => setNoteTitle(e.target.value)}
                         />
 
-                        <div className="flex-1 border border-slate-700/50 rounded-xl p-3 overflow-y-auto">
+                        <div className="h-[320px] lg:h-[380px] border border-slate-700/50 rounded-xl p-3 overflow-y-auto custom-scrollbar">
                             <EditorContent editor={editor} />
                         </div>
+
+                        {/* Toolbar flotante para imagen seleccionada */}
+                        {imageToolbar && (
+                            <div
+                                className="fixed z-50 flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl px-2 py-1.5 -translate-x-1/2 -translate-y-full mt-[-8px]"
+                                style={{ top: imageToolbar.top, left: imageToolbar.left }}
+                            >
+                                <button onClick={() => setLightboxImage(editor?.getAttributes('image').src)} className="p-1.5 text-slate-300 hover:text-amber-400 hover:bg-slate-700 rounded-md transition-colors" title="Ver imagen">
+                                    <Eye size={14} />
+                                </button>
+                                <div className="w-px h-4 bg-slate-700 mx-1" />
+                                <button onClick={() => handleImageAlign('left')} className="p-1.5 text-slate-300 hover:text-amber-400 hover:bg-slate-700 rounded-md transition-colors" title="Alinear izquierda">
+                                    <AlignLeft size={14} />
+                                </button>
+                                <button onClick={() => handleImageAlign('center')} className="p-1.5 text-slate-300 hover:text-amber-400 hover:bg-slate-700 rounded-md transition-colors" title="Centrar">
+                                    <AlignCenter size={14} />
+                                </button>
+                                <button onClick={() => handleImageAlign('right')} className="p-1.5 text-slate-300 hover:text-amber-400 hover:bg-slate-700 rounded-md transition-colors" title="Alinear derecha">
+                                    <AlignRight size={14} />
+                                </button>
+                            </div>
+                        )}
 
                         {/* Hint de atajos */}
                         <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-600">
@@ -519,6 +534,27 @@ const SupportNotesPage = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Lightbox / Modal de imagen */}
+            {lightboxImage && (
+                <div
+                    className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4"
+                    onClick={() => setLightboxImage(null)}
+                >
+                    <button
+                        className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white bg-slate-800/50 rounded-full transition-colors"
+                        onClick={() => setLightboxImage(null)}
+                    >
+                        <X size={24} />
+                    </button>
+                    <img
+                        src={lightboxImage}
+                        alt="Vista previa"
+                        className="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>
+            )}
         </div>
     );
 };

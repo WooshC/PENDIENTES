@@ -26,8 +26,11 @@ echo [3/4] Desplegando archivos estaticos al Backend...
 cd ..
 if not exist "backend\wwwroot" mkdir "backend\wwwroot"
 
-:: Limpiar wwwroot antiguo
-del /q /s "backend\wwwroot\*"
+:: Limpiar wwwroot antiguo excepto la carpeta uploads
+for /d %%D in ("backend\wwwroot\*") do (
+    if /I not "%%~nxD"=="uploads" rd /s /q "%%D"
+)
+del /q "backend\wwwroot\*"
 
 :: Copiar nuevos archivos
 xcopy /s /y /e "frontend\dist\*" "backend\wwwroot\"

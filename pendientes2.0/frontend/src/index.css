@@ -44,14 +44,14 @@
     bottom: -6px;
     width: 14px;
     height: 14px;
-    background-color: #10b981;
+    background-color: #f59e0b;
     border: 2px solid #0f172a;
     border-radius: 50%;
     cursor: nwse-resize;
     opacity: 0;
     transition: opacity 0.2s ease, transform 0.15s ease;
     z-index: 10;
-    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.3);
 }
 
 .image-resizer:hover .resize-trigger {
@@ -60,11 +60,37 @@
 
 .image-resizer .resize-trigger:hover {
     transform: scale(1.2);
-    background-color: #34d399;
+    background-color: #fbbf24;
 }
 
 /* Selected image highlight */
 .ProseMirror .image-resizer.ProseMirror-selectednode img {
-    outline: 2px solid #10b981;
+    outline: 2px solid #f59e0b;
     outline-offset: 2px;
+}
+
+/* Image alignment classes */
+.ProseMirror .image-resizer[data-align="left"] {
+    float: left;
+    margin-right: 16px;
+    margin-bottom: 8px;
+}
+
+.ProseMirror .image-resizer[data-align="right"] {
+    float: right;
+    margin-left: 16px;
+    margin-bottom: 8px;
+}
+
+.ProseMirror .image-resizer[data-align="center"] {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Clearfix for floated images */
+.ProseMirror::after {
+    content: "";
+    display: table;
+    clear: both;
 }
