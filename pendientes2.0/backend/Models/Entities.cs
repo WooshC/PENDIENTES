@@ -132,6 +132,12 @@ public class SupportNote
     [Column("updated_at")]
     public string UpdatedAt { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
+    [Column("tags")]
+    public string Tags { get; set; } = "Soporte";
+
+    [Column("tag_colors")]
+    public string TagColors { get; set; } = "";
+
     // Relación: Una nota tiene muchas imágenes
     public List<SupportNoteImage> Images { get; set; } = new();
 }

@@ -50,6 +50,8 @@ public class SupportNotesController : ControllerBase
     {
         note.CreatedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         note.UpdatedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        if (string.IsNullOrWhiteSpace(note.Tags))
+            note.Tags = "Soporte";
         _context.SupportNotes.Add(note);
         await _context.SaveChangesAsync();
         return CreatedAtAction(nameof(GetSupportNote), new { id = note.Id }, note);
@@ -67,6 +69,8 @@ public class SupportNotesController : ControllerBase
         existing.Title = note.Title;
         // El Content ahora contiene HTML con <img src="/api/supportnotes/images/X">
         existing.Content = note.Content;
+        existing.Tags = string.IsNullOrWhiteSpace(note.Tags) ? "Soporte" : note.Tags;
+        existing.TagColors = note.TagColors ?? "";
         existing.UpdatedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
         await _context.SaveChangesAsync();

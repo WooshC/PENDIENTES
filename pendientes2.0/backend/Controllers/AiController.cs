@@ -50,17 +50,23 @@ public class AiController : ControllerBase
             .Distinct()
             .ToList();
 
-        // Score each note by keyword matches in title + content
+        // Score each note by keyword matches in title + content + tags
         // Uses both full keyword and a 6-char prefix (pseudo-stem) to handle verb conjugations
         // NormalizeText strips accents so "fórmulas" matches "formulas"
+        // Tags have higher weight (3x) because they are explicit categorizations.
         var scored = notes.Select(note =>
         {
             var text = NormalizeText($"{note.Title} {note.Content}");
+            var tagsText = NormalizeText(note.Tags ?? "");
             var score = keywords.Count(kw =>
                 text.Contains(kw) ||
                 (kw.Length > 6 && text.Contains(kw[..6]))
             );
-            return (note, score);
+            var tagScore = keywords.Count(kw =>
+                tagsText.Contains(kw) ||
+                tagsText.Split(',').Any(t => t.Trim() == kw)
+            ) * 3;
+            return (note, score: score + tagScore);
         }).ToList();
 
         // Take notes with matches first, then fill with most recent if needed
@@ -142,7 +148,7 @@ public class AiController : ControllerBase
         var contextText = new StringBuilder();
         foreach (var note in relevantNotes)
         {
-            contextText.AppendLine($"- [{note.CreatedAt}] {note.Title}: {note.Content}");
+            contextText.AppendLine($"- [{note.CreatedAt}] Etiquetas: {note.Tags ?? "Soporte"} (Colores: {note.TagColors ?? "ninguno"}) | {note.Title}: {note.Content}");
         }
 
         // 2. Call Groq API (Llama 3 via OpenAI-compatible endpoint)

@@ -57,11 +57,33 @@ const handleBrokenImages = () => {
     }, 300);
 };
 
+const TAG_PALETTE = [
+    '#ef4444', '#f97316', '#f59e0b', '#84cc16',
+    '#10b981', '#06b6d4', '#3b82f6', '#6366f1',
+    '#8b5cf6', '#d946ef', '#f43f5e', '#71717a'
+];
+
+const getAutoColor = (tag, existingColors = {}) => {
+    if (existingColors[tag]) return existingColors[tag];
+    let hash = 0;
+    for (let i = 0; i < tag.length; i++) hash = tag.charCodeAt(i) + ((hash << 5) - hash);
+    return TAG_PALETTE[Math.abs(hash) % TAG_PALETTE.length];
+};
+
+const parseTagColors = (jsonString) => {
+    try {
+        return JSON.parse(jsonString || '{}');
+    } catch {
+        return {};
+    }
+};
+
 const SupportNotesPage = () => {
     const [notes, setNotes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState('');
+    const [tagFilter, setTagFilter] = useState('');
     const [selectedNote, setSelectedNote] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
     const [aiQuery, setAiQuery] = useState('');
@@ -69,12 +91,17 @@ const SupportNotesPage = () => {
     const [isAiThinking, setIsAiThinking] = useState(false);
     const [mobileTab, setMobileTab] = useState('notes');
     const [noteTitle, setNoteTitle] = useState('');
+    const [noteTags, setNoteTags] = useState([]);
+    const [noteTagColors, setNoteTagColors] = useState({});
+    const [tagInput, setTagInput] = useState('');
+    const [showTagDropdown, setShowTagDropdown] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [lightboxImage, setLightboxImage] = useState(null);
-    const [imageToolbar, setImageToolbar] = useState(null); // { top, left } | null
+    const [imageToolbar, setImageToolbar] = useState(null);
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
     const editorRef = useRef(null);
+    const tagInputRef = useRef(null);
 
     // Función reutilizable para subir imagen e insertarla en el editor
     const processImageFile = useCallback(async (file) => {
@@ -234,18 +261,24 @@ const SupportNotesPage = () => {
             toast.error('La nota no puede estar vacía');
             return;
         }
+        const tagsString = noteTags.length > 0 ? noteTags.join(',') : 'Soporte';
+        const tagColorsString = JSON.stringify(noteTagColors);
         try {
             if (selectedNote) {
                 await updateSupportNote(selectedNote.id, {
                     ...selectedNote,
                     title: noteTitle || 'Nota sin título',
-                    content
+                    content,
+                    tags: tagsString,
+                    tag_colors: tagColorsString
                 });
                 toast.success('Nota actualizada');
             } else {
                 await addSupportNote({
                     title: noteTitle || 'Nota sin título',
-                    content
+                    content,
+                    tags: tagsString,
+                    tag_colors: tagColorsString
                 });
                 toast.success('Nota guardada');
             }
@@ -253,6 +286,9 @@ const SupportNotesPage = () => {
             setIsEditing(false);
             setSelectedNote(null);
             setNoteTitle('');
+            setNoteTags([]);
+            setNoteTagColors({});
+            setTagInput('');
             editor?.commands.setContent('');
             setMobileTab('notes');
         } catch (error) {
@@ -291,20 +327,73 @@ const SupportNotesPage = () => {
     const handleSelectNote = (note) => {
         setSelectedNote(note);
         setNoteTitle(note.title);
+        const tags = note.tags ? note.tags.split(',').map(t => t.trim()).filter(Boolean) : ['Soporte'];
+        setNoteTags(tags);
+        const colors = parseTagColors(note.tag_colors);
+        const merged = {};
+        tags.forEach(t => merged[t] = colors[t] || getAutoColor(t, colors));
+        setNoteTagColors(merged);
+        setTagInput('');
+        setShowTagDropdown(false);
         editor?.commands.setContent(note.content || '');
         setIsEditing(true);
-        setSaveStatus('idle');
         setMobileTab('editor');
     };
 
     const handleNewNote = () => {
         setSelectedNote(null);
         setNoteTitle('');
+        setNoteTags([]);
+        setNoteTagColors({});
+        setTagInput('');
+        setShowTagDropdown(false);
         editor?.commands.setContent('');
         setIsEditing(true);
-        setSaveStatus('idle');
         setMobileTab('editor');
     };
+
+    const addTag = (tag) => {
+        const clean = tag.trim();
+        if (!clean || noteTags.includes(clean)) return;
+        setNoteTags([...noteTags, clean]);
+        setNoteTagColors(prev => ({ ...prev, [clean]: getAutoColor(clean, prev) }));
+        setTagInput('');
+        setShowTagDropdown(false);
+    };
+
+    const removeTag = (tag) => {
+        setNoteTags(noteTags.filter(t => t !== tag));
+        setNoteTagColors(prev => {
+            const next = { ...prev };
+            delete next[tag];
+            return next;
+        });
+    };
+
+    const setTagColor = (tag, color) => {
+        setNoteTagColors(prev => ({ ...prev, [tag]: color }));
+    };
+
+    const handleTagInputKeyDown = (e) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            if (tagInput.trim()) addTag(tagInput);
+        }
+        if (e.key === 'Escape') {
+            setShowTagDropdown(false);
+        }
+    };
+
+    // Cerrar dropdown al hacer clic fuera
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (tagInputRef.current && !tagInputRef.current.contains(e.target)) {
+                setShowTagDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const handleImageUpload = async (e) => {
         const file = e.target.files?.[0];
@@ -335,7 +424,8 @@ const SupportNotesPage = () => {
         const matchesText = (note.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (note.content || '').toLowerCase().includes(searchTerm.toLowerCase());
         const matchesDate = !dateFilter || (note.created_at && note.created_at.includes(dateFilter));
-        return matchesText && matchesDate;
+        const matchesTag = !tagFilter || (note.tags || 'Soporte').split(',').map(t => t.trim()).includes(tagFilter);
+        return matchesText && matchesDate && matchesTag;
     });
 
     const formatDate = (dateString) => {
@@ -354,24 +444,48 @@ const SupportNotesPage = () => {
             <Toaster position="top-center" theme="dark" richColors />
 
             {/* Header */}
-            <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                        Notas de Soporte
-                    </h1>
-                    <p className="text-slate-400 mt-0.5 text-xs md:text-sm">Registra y consulta el historial de soporte brindado.</p>
+            <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-xl shadow-amber-500/20 shrink-0">
+                        <StickyNote size={28} className="text-white" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent tracking-tight">
+                            Notas de Soporte
+                        </h1>
+                        <p className="text-slate-500 mt-0.5 text-xs md:text-sm font-medium">Historial técnico y consultas resueltas</p>
+                    </div>
                 </div>
-                <button onClick={handleNewNote} className="self-start sm:self-auto flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl transition-all shadow-lg shadow-amber-500/20 font-medium text-sm active:scale-95">
-                    <Plus size={18} /> Nueva Nota
+                <button onClick={handleNewNote} className="self-start sm:self-auto flex items-center gap-2.5 px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white rounded-xl transition-all shadow-lg shadow-amber-500/25 font-semibold text-sm active:scale-95 hover:shadow-amber-500/40">
+                    <Plus size={20} strokeWidth={2.5} /> Nueva Nota
                 </button>
             </header>
 
             {/* Filters */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-900/50 p-3 rounded-2xl border border-slate-800 backdrop-blur-sm">
-                <SearchInput dark value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Buscar en notas..." className="sm:col-span-2 py-2.5" />
-                <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} />
-                    <input type="date" className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all text-slate-300 text-sm" value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
+            <div className="flex flex-col sm:flex-row gap-3 bg-slate-900/60 p-3 rounded-2xl border border-slate-800/80 backdrop-blur-sm">
+                <div className="flex-1 relative group">
+                    <SearchInput dark value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Buscar en notas..." className="w-full py-2.5" />
+                </div>
+                <div className="flex gap-3">
+                    <div className="relative w-40">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={15} />
+                        <input type="date" className="w-full bg-slate-800/80 border border-slate-700/60 rounded-xl pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/40 transition-all text-slate-300 text-sm hover:border-slate-600" value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
+                    </div>
+                    <div className="relative w-48">
+                        <select
+                            value={tagFilter}
+                            onChange={e => setTagFilter(e.target.value)}
+                            className="w-full h-full bg-slate-800/80 border border-slate-700/60 rounded-xl px-3 pr-8 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/40 transition-all text-slate-300 text-sm appearance-none cursor-pointer hover:border-slate-600"
+                        >
+                            <option value="">📑 Todas las etiquetas</option>
+                            {Array.from(new Set(notes.flatMap(n => (n.tags || 'Soporte').split(',').map(t => t.trim())))).sort().map(tag => (
+                                <option key={tag} value={tag}>{tag}</option>
+                            ))}
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                            <svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -404,14 +518,31 @@ const SupportNotesPage = () => {
                             <EmptyState icon={StickyNote} title="No se encontraron notas" description={searchTerm ? 'Intenta con otra búsqueda' : 'Crea tu primera nota de soporte'} />
                         ) : (
                             filteredNotes.map((note) => (
-                                <motion.div key={note.id} layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+                                <motion.div key={note.id} layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
                                     onClick={() => handleSelectNote(note)}
-                                    className={`p-4 rounded-2xl border transition-all cursor-pointer group ${selectedNote?.id === note.id ? 'bg-amber-500/10 border-amber-500/50 shadow-lg shadow-amber-500/5' : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'}`}>
-                                    <div className="flex justify-between items-start mb-1.5">
-                                        <h3 className={`font-semibold truncate pr-4 text-sm ${selectedNote?.id === note.id ? 'text-amber-400' : 'text-slate-200'}`}>{note.title}</h3>
-                                        <span className="text-[10px] text-slate-500 flex items-center gap-1 shrink-0"><Clock size={10} />{formatDate(note.created_at)}</span>
+                                    className={`p-4 rounded-xl border transition-all duration-200 cursor-pointer group relative overflow-hidden ${selectedNote?.id === note.id ? 'bg-gradient-to-br from-amber-500/10 to-orange-500/5 border-amber-500/40 shadow-lg shadow-amber-500/10' : 'bg-slate-900/40 border-slate-800/60 hover:border-slate-700 hover:bg-slate-800/40 hover:shadow-md hover:shadow-black/20'}`}>
+                                    {selectedNote?.id === note.id && (
+                                        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-amber-400 to-orange-500" />
+                                    )}
+                                    <div className="flex justify-between items-start gap-2 mb-2">
+                                        <h3 className={`font-semibold truncate pr-2 text-sm leading-tight ${selectedNote?.id === note.id ? 'text-amber-300' : 'text-slate-200 group-hover:text-white'}`}>{note.title}</h3>
+                                        <span className="text-[10px] text-slate-600 flex items-center gap-1 shrink-0 font-mono tracking-tight"><Clock size={10} />{formatDate(note.created_at)}</span>
                                     </div>
-                                    <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">{note.content?.replace(/<[^>]*>/g, '') || ''}</p>
+                                    <div className="flex flex-wrap gap-1 mb-2">
+                                        {(note.tags || 'Soporte').split(',').map(t => t.trim()).filter(Boolean).slice(0, 4).map((tag) => {
+                                            const colors = parseTagColors(note.tag_colors);
+                                            const color = colors[tag] || getAutoColor(tag);
+                                            return (
+                                                <span key={tag} className="px-2 py-0.5 rounded-md text-[10px] font-medium border" style={{ backgroundColor: color + '18', color: color, borderColor: color + '30' }}>
+                                                    {tag}
+                                                </span>
+                                            );
+                                        })}
+                                        {(note.tags || 'Soporte').split(',').length > 4 && (
+                                            <span className="px-1.5 py-0.5 text-[10px] text-slate-600">+{(note.tags || 'Soporte').split(',').length - 4}</span>
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed group-hover:text-slate-400 transition-colors">{note.content?.replace(/<[^>]*>/g, '') || ''}</p>
                                 </motion.div>
                             ))
                         )}
@@ -422,35 +553,33 @@ const SupportNotesPage = () => {
                 <div className={`lg:col-span-8 flex flex-col gap-4 ${mobileTab !== 'notes' ? 'block' : 'hidden lg:flex'}`}>
 
                     {/* Note Editor */}
-                    <div className={`${mobileTab === 'ai' ? 'hidden lg:flex' : 'flex'} flex-col bg-slate-900/50 border border-slate-800 rounded-2xl p-5 backdrop-blur-sm`}>
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-amber-500/10 rounded-lg text-amber-400"><StickyNote size={18} /></div>
-                                <div className="flex flex-col">
-                                    <h2 className="text-lg font-semibold text-slate-100">{selectedNote ? 'Editar Nota' : 'Nueva Nota'}</h2>
-
-
+                    <div className={`${mobileTab === 'ai' ? 'hidden lg:flex' : 'flex'} flex-col bg-gradient-to-b from-slate-900/80 to-slate-900/40 border border-slate-800/60 rounded-2xl p-5 backdrop-blur-sm shadow-xl shadow-black/10`}>
+                        {/* Toolbar del Editor */}
+                        <div className="flex items-center justify-between mb-5">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                                    <StickyNote size={16} />
                                 </div>
+                                <h2 className="text-base font-semibold text-slate-200">{selectedNote ? 'Editar Nota' : 'Nueva Nota'}</h2>
                             </div>
-                            <div className="flex items-center gap-2">
-                                {/* Botón subir imagen */}
+                            <div className="flex items-center gap-1.5">
                                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                                 <button
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={uploadingImage}
-                                    className="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-300 rounded-xl transition-all font-medium text-sm"
+                                    className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-400 hover:text-slate-200 rounded-lg transition-all text-xs font-medium border border-slate-700/50 hover:border-slate-600"
                                     title="Insertar imagen"
                                 >
-                                    {uploadingImage ? <Spinner size="sm" /> : <ImageIcon size={16} />}
+                                    {uploadingImage ? <Spinner size="sm" /> : <ImageIcon size={14} />}
                                     {uploadingImage ? 'Subiendo...' : 'Imagen'}
                                 </button>
                                 {selectedNote && (
-                                    <button onClick={() => handleDeleteNote(selectedNote.id)} className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all" title="Eliminar">
-                                        <Trash2 size={18} />
+                                    <button onClick={() => handleDeleteNote(selectedNote.id)} className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all" title="Eliminar">
+                                        <Trash2 size={16} />
                                     </button>
                                 )}
-                                <button onClick={handleSaveNote} className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl transition-all font-medium text-sm active:scale-95">
-                                    <Save size={16} /> Guardar
+                                <button onClick={handleSaveNote} className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white rounded-lg transition-all text-xs font-semibold shadow-lg shadow-amber-500/20 active:scale-95">
+                                    <Save size={14} strokeWidth={2.5} /> Guardar
                                 </button>
                             </div>
                         </div>
@@ -458,12 +587,64 @@ const SupportNotesPage = () => {
                         <input
                             type="text"
                             placeholder="Título de la nota..."
-                            className="bg-transparent text-xl font-bold text-slate-100 border-none focus:outline-none mb-3 placeholder:text-slate-600"
+                            className="bg-transparent text-2xl font-bold text-white border-none focus:outline-none mb-3 placeholder:text-slate-700 tracking-tight"
                             value={noteTitle}
                             onChange={e => setNoteTitle(e.target.value)}
                         />
 
-                        <div className="h-[320px] lg:h-[380px] border border-slate-700/50 rounded-xl p-3 overflow-y-auto custom-scrollbar">
+                        {/* Tags input */}
+                        <div className="mb-4" ref={tagInputRef}>
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                                {noteTags.map(tag => (
+                                    <span key={tag} className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-lg text-[11px] font-semibold shadow-sm border group/tag relative" style={{ backgroundColor: (noteTagColors[tag] || getAutoColor(tag, noteTagColors)) + '18', color: noteTagColors[tag] || getAutoColor(tag, noteTagColors), borderColor: (noteTagColors[tag] || getAutoColor(tag, noteTagColors)) + '35' }}>
+                                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: noteTagColors[tag] || getAutoColor(tag, noteTagColors) }} />
+                                        {tag}
+                                        <button onClick={() => removeTag(tag)} className="hover:text-white transition-colors opacity-60 hover:opacity-100">
+                                            <X size={11} strokeWidth={2.5} />
+                                        </button>
+                                        {/* Color picker mini */}
+                                        <div className="hidden group-hover/tag:flex absolute top-full left-0 mt-1 z-20 bg-slate-800 border border-slate-700 rounded-lg p-1.5 gap-1 shadow-xl">
+                                            {TAG_PALETTE.map(c => (
+                                                <button key={c} onClick={() => setTagColor(tag, c)} className="w-5 h-5 rounded-full border border-white/10 hover:scale-110 transition-transform" style={{ backgroundColor: c }} />
+                                            ))}
+                                        </div>
+                                    </span>
+                                ))}
+                            </div>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="Escribe o selecciona una etiqueta..."
+                                    className="w-full bg-slate-950/50 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500/30 placeholder:text-slate-600 transition-all"
+                                    value={tagInput}
+                                    onChange={e => { setTagInput(e.target.value); setShowTagDropdown(true); }}
+                                    onFocus={() => setShowTagDropdown(true)}
+                                    onKeyDown={handleTagInputKeyDown}
+                                />
+                                {/* Dropdown de etiquetas existentes */}
+                                {showTagDropdown && (
+                                    <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-[180px] overflow-y-auto custom-scrollbar">
+                                        {Array.from(new Set(notes.flatMap(n => (n.tags || '').split(',').map(t => t.trim()).filter(Boolean)))).filter(t => t.toLowerCase().includes(tagInput.toLowerCase()) && !noteTags.includes(t)).length === 0 ? (
+                                            <div className="px-3 py-2 text-[11px] text-slate-500">Presiona Enter para crear "{tagInput}"</div>
+                                        ) : (
+                                            Array.from(new Set(notes.flatMap(n => (n.tags || '').split(',').map(t => t.trim()).filter(Boolean)))).filter(t => t.toLowerCase().includes(tagInput.toLowerCase()) && !noteTags.includes(t)).map(tag => {
+                                                const allColors = {};
+                                                notes.forEach(n => Object.assign(allColors, parseTagColors(n.tag_colors)));
+                                                const color = allColors[tag] || getAutoColor(tag, allColors);
+                                                return (
+                                                    <button key={tag} onClick={() => addTag(tag)} className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 flex items-center gap-2 transition-colors">
+                                                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                                                        {tag}
+                                                    </button>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex-1 min-h-[280px] lg:min-h-[320px] max-h-[400px] border border-slate-800/60 rounded-xl p-4 overflow-y-auto custom-scrollbar bg-slate-950/30">
                             <EditorContent editor={editor} />
                         </div>
 
@@ -496,28 +677,47 @@ const SupportNotesPage = () => {
                     </div>
 
                     {/* AI Assistant */}
-                    <div className={`${mobileTab === 'editor' ? 'hidden lg:flex' : 'flex'} flex-col bg-gradient-to-br from-amber-900/20 to-orange-900/20 border border-amber-500/20 rounded-2xl p-5 backdrop-blur-sm`}>
+                    <div className={`${mobileTab === 'editor' ? 'hidden lg:flex' : 'flex'} flex-col bg-gradient-to-b from-slate-900/80 to-slate-950/80 border border-slate-800/60 rounded-2xl p-5 backdrop-blur-sm shadow-xl shadow-black/10`}>
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2 bg-amber-500/20 rounded-lg text-amber-400"><BrainCircuit size={18} /></div>
-                            <h2 className="text-base font-semibold text-amber-100">Consultar a la IA</h2>
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500/20 to-purple-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400">
+                                <BrainCircuit size={16} />
+                            </div>
+                            <h2 className="text-base font-semibold text-slate-200">Asistente IA</h2>
                         </div>
-                        <div className="bg-slate-950/50 border border-amber-500/10 p-4 rounded-xl max-h-[260px] overflow-y-auto space-y-3 custom-scrollbar mb-3">
+
+                        {/* Consejos para preguntar */}
+                        <div className="bg-gradient-to-r from-violet-500/5 to-purple-500/5 border border-violet-500/10 rounded-xl p-3.5 mb-3">
+                            <p className="text-[11px] text-violet-300 font-semibold mb-2 flex items-center gap-1.5">
+                                <span className="w-1 h-1 rounded-full bg-violet-400" /> Consejos para preguntar
+                            </p>
+                            <ul className="text-[10px] text-slate-500 space-y-1.5">
+                                <li className="flex items-start gap-1.5"><span className="text-violet-500/60 mt-0.5">▸</span> Menciona una <strong className="text-slate-400">etiqueta</strong>: <em className="text-slate-500">"¿Qué tengo sobre Redes?"</em></li>
+                                <li className="flex items-start gap-1.5"><span className="text-violet-500/60 mt-0.5">▸</span> Sé específico con el <strong className="text-slate-400">tema</strong>: <em className="text-slate-500">"Fórmulas de Lago Agrio"</em></li>
+                                <li className="flex items-start gap-1.5"><span className="text-violet-500/60 mt-0.5">▸</span> La IA solo ve tus <strong className="text-slate-400">notas</strong>, no tiene internet.</li>
+                            </ul>
+                        </div>
+
+                        <div className="flex-1 min-h-[180px] max-h-[320px] bg-slate-950/40 border border-slate-800/40 rounded-xl p-4 overflow-y-auto space-y-3 custom-scrollbar mb-3">
                             {chatHistory.length === 0 ? (
-                                <p className="text-slate-500 text-sm text-center italic py-6">Haz preguntas sobre tus notas de soporte para obtener ayuda instantánea.</p>
+                                <div className="flex flex-col items-center justify-center h-full py-8 text-center">
+                                    <BrainCircuit size={32} className="text-slate-700 mb-3" />
+                                    <p className="text-slate-600 text-sm">Haz preguntas sobre tus notas</p>
+                                    <p className="text-slate-700 text-xs mt-1">La IA buscará en tu historial de soporte</p>
+                                </div>
                             ) : (
                                 chatHistory.map((msg, idx) => (
-                                    <motion.div key={idx} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'user' ? 'bg-amber-600/20 text-amber-100 rounded-tr-none' : msg.role === 'error' ? 'bg-red-500/10 text-red-300 border border-red-500/20' : 'bg-slate-800/50 text-slate-300 rounded-tl-none border border-slate-700/50'}`}>
+                                    <motion.div key={idx} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`max-w-[90%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.role === 'user' ? 'bg-gradient-to-br from-violet-600/25 to-purple-600/15 text-violet-100 rounded-tr-sm border border-violet-500/20' : msg.role === 'error' ? 'bg-red-500/10 text-red-300 border border-red-500/20 rounded-tl-sm' : 'bg-slate-800/60 text-slate-300 rounded-tl-sm border border-slate-700/40'}`}>
                                             {msg.content}
                                         </div>
                                     </motion.div>
                                 ))
                             )}
                             {isAiThinking && (
-                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-                                    <div className="bg-slate-800/50 p-3 rounded-2xl rounded-tl-none border border-slate-700/50 flex items-center gap-1.5">
-                                        {[0, 0.2, 0.4].map((delay, i) => (
-                                            <div key={i} className="w-2 h-2 bg-amber-400/60 rounded-full animate-bounce" style={{ animationDelay: `${delay}s` }} />
+                                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex justify-start">
+                                    <div className="bg-slate-800/60 px-4 py-2.5 rounded-2xl rounded-tl-sm border border-slate-700/40 flex items-center gap-1.5">
+                                        {[0, 0.15, 0.3].map((delay, i) => (
+                                            <div key={i} className="w-1.5 h-1.5 bg-violet-400/50 rounded-full animate-bounce" style={{ animationDelay: `${delay}s` }} />
                                         ))}
                                     </div>
                                 </motion.div>
@@ -525,10 +725,10 @@ const SupportNotesPage = () => {
                             <div ref={messagesEndRef} />
                         </div>
                         <div className="flex gap-2">
-                            <input type="text" placeholder="Pregunta algo sobre tus notas..." className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all text-slate-200 text-sm min-w-0"
+                            <input type="text" placeholder="Pregunta algo sobre tus notas..." className="flex-1 bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500/30 transition-all text-slate-200 text-sm min-w-0 placeholder:text-slate-600"
                                 value={aiQuery} onChange={e => setAiQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleAiAsk()} disabled={isAiThinking} />
-                            <button onClick={handleAiAsk} disabled={!aiQuery.trim() || isAiThinking} className="p-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white rounded-xl transition-all shadow-lg shadow-amber-500/20 disabled:shadow-none shrink-0">
-                                <Send size={18} />
+                            <button onClick={handleAiAsk} disabled={!aiQuery.trim() || isAiThinking} className="p-2.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 disabled:opacity-50 text-white rounded-xl transition-all shadow-lg shadow-violet-500/20 disabled:shadow-none shrink-0">
+                                <Send size={16} />
                             </button>
                         </div>
                     </div>
