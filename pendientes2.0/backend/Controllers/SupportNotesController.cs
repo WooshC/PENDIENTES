@@ -237,6 +237,104 @@ public class SupportNotesController : ControllerBase
         return Ok(new { message = "Contenido actualizado" });
     }
 
+    // ── AUDIOS ────────────────────────────────────────────────────────────────
+
+    private static readonly HashSet<string> _allowedAudioTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "audio/webm", "audio/mp3", "audio/mpeg", "audio/wav", "audio/ogg", "audio/mp4", "audio/x-m4a"
+    };
+    private const long _maxAudioSize = 20 * 1024 * 1024; // 20MB
+
+    // POST: api/supportnotes/5/audios
+    [HttpPost("{noteId}/audios")]
+    public async Task<ActionResult<object>> UploadAudio(int noteId, IFormFile file, [FromForm] int? durationSeconds = null)
+    {
+        var note = await _context.SupportNotes.FindAsync(noteId);
+        if (note == null) return NotFound("Nota no encontrada");
+
+        if (file == null || file.Length == 0)
+            return BadRequest("No se envió archivo");
+
+        if (file.Length > _maxAudioSize)
+            return BadRequest("Archivo muy grande (máx 20MB)");
+
+        var contentType = file.ContentType.ToLower();
+        if (!_allowedAudioTypes.Contains(contentType))
+            return BadRequest("Formato no soportado. Usa: webm, mp3, wav, ogg, m4a");
+
+        var uploadPath = _configuration["ImageStorage:UploadPath"] ?? "uploads/support-notes";
+        var audioFolder = Path.Combine(_environment.WebRootPath, uploadPath, noteId.ToString(), "audios");
+        if (!Directory.Exists(audioFolder))
+            Directory.CreateDirectory(audioFolder);
+
+        var extension = Path.GetExtension(file.FileName).ToLower();
+        if (string.IsNullOrEmpty(extension)) extension = ".webm";
+        var uniqueName = $"{Guid.NewGuid():N}{extension}";
+        var relativePath = $"/{uploadPath}/{noteId}/audios/{uniqueName}";
+        var fullPath = Path.Combine(audioFolder, uniqueName);
+
+        using (var stream = new FileStream(fullPath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var audio = new SupportNoteAudio
+        {
+            SupportNoteId = noteId,
+            FileName = file.FileName,
+            ContentType = contentType,
+            FilePath = relativePath,
+            FileSize = file.Length,
+            DurationSeconds = durationSeconds
+        };
+
+        _context.SupportNoteAudios.Add(audio);
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            id = audio.Id,
+            url = $"/api/supportnotes/audios/{audio.Id}",
+            fileName = audio.FileName,
+            durationSeconds = audio.DurationSeconds
+        });
+    }
+
+    // GET: api/supportnotes/audios/5
+    [HttpGet("audios/{audioId}")]
+    public async Task<IActionResult> GetAudio(int audioId)
+    {
+        var audio = await _context.SupportNoteAudios.FindAsync(audioId);
+        if (audio == null) return NotFound();
+
+        var fullPath = Path.Combine(_environment.WebRootPath, audio.FilePath.TrimStart('/'));
+        if (!System.IO.File.Exists(fullPath))
+            return NotFound("Archivo no encontrado");
+
+        var provider = new FileExtensionContentTypeProvider();
+        if (!provider.TryGetContentType(audio.FileName, out var contentType))
+            contentType = audio.ContentType;
+
+        return PhysicalFile(fullPath, contentType);
+    }
+
+    // DELETE: api/supportnotes/audios/5
+    [HttpDelete("audios/{audioId}")]
+    public async Task<IActionResult> DeleteAudio(int audioId)
+    {
+        var audio = await _context.SupportNoteAudios.FindAsync(audioId);
+        if (audio == null) return NotFound();
+
+        var fullPath = Path.Combine(_environment.WebRootPath, audio.FilePath.TrimStart('/'));
+        if (System.IO.File.Exists(fullPath))
+            System.IO.File.Delete(fullPath);
+
+        _context.SupportNoteAudios.Remove(audio);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Audio eliminado" });
+    }
+
     // Método auxiliar: Eliminar imágenes que ya no están referenciadas en el HTML
     private async Task CleanOrphanImages(int noteId, string htmlContent)
     {

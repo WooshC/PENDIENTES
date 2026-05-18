@@ -140,6 +140,9 @@ public class SupportNote
 
     // Relación: Una nota tiene muchas imágenes
     public List<SupportNoteImage> Images { get; set; } = new();
+
+    // Relación: Una nota tiene muchos audios
+    public List<SupportNoteAudio> Audios { get; set; } = new();
 }
 
 [Table("support_note_images")]
@@ -169,6 +172,38 @@ public class SupportNoteImage
     public string CreatedAt { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
     // Relación inversa (nullable para evitar ciclos JSON)
+    public SupportNote? SupportNote { get; set; }
+}
+
+[Table("support_note_audios")]
+public class SupportNoteAudio
+{
+    [Key]
+    [Column("id")]
+    public int Id { get; set; }
+
+    [Column("support_note_id")]
+    [ForeignKey("SupportNote")]
+    public int SupportNoteId { get; set; }
+
+    [Column("file_name")]
+    public string FileName { get; set; } = "";
+
+    [Column("content_type")]
+    public string ContentType { get; set; } = "audio/webm";
+
+    [Column("file_path")]
+    public string FilePath { get; set; } = "";
+
+    [Column("file_size")]
+    public long FileSize { get; set; } = 0;
+
+    [Column("duration_seconds")]
+    public int? DurationSeconds { get; set; }
+
+    [Column("created_at")]
+    public string CreatedAt { get; set; } = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
     public SupportNote? SupportNote { get; set; }
 }
 

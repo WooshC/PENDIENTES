@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<ClientTask> ClientTasks { get; set; }
     public DbSet<SupportNote> SupportNotes { get; set; }
     public DbSet<SupportNoteImage> SupportNoteImages { get; set; }
+    public DbSet<SupportNoteAudio> SupportNoteAudios { get; set; }
     public DbSet<AiChatMessage> AiChatHistory { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -33,6 +34,12 @@ public class AppDbContext : DbContext
             .HasMany(n => n.Images)
             .WithOne(i => i.SupportNote)
             .HasForeignKey(i => i.SupportNoteId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<SupportNote>()
+            .HasMany(n => n.Audios)
+            .WithOne(a => a.SupportNote)
+            .HasForeignKey(a => a.SupportNoteId)
             .OnDelete(DeleteBehavior.Cascade); 
     }
 }

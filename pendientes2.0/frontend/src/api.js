@@ -56,6 +56,17 @@ export const uploadNoteImage = (noteId, file) => {
 export const getNoteImages = (noteId) => api.get(`/supportnotes/${noteId}/images`);
 export const deleteNoteImage = (imageId) => api.delete(`/supportnotes/images/${imageId}`);
 
+// Support Notes Audios
+export const uploadNoteAudio = (noteId, file, durationSeconds = null) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (durationSeconds) formData.append('durationSeconds', durationSeconds);
+    return api.post(`/supportnotes/${noteId}/audios`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    });
+};
+export const deleteNoteAudio = (audioId) => api.delete(`/supportnotes/audios/${audioId}`);
+
 // AI
 export const askAi = (query) => api.post('/ai/ask', { query });
 export const getChatHistory = () => api.get('/ai/history');

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Calendar, Plus, Save, Trash2, BrainCircuit,
     Send, StickyNote, Clock, ImageIcon, CheckCircle2,
-    Loader2, Eye, AlignLeft, AlignCenter, AlignRight, X
+    Loader2, Eye, AlignLeft, AlignCenter, AlignRight, X,
+    Mic, Square, Upload, Bold, Highlighter, Type
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
@@ -10,6 +11,9 @@ import { format } from 'date-fns';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import ImageResize from 'tiptap-extension-resize-image';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { Color } from '@tiptap/extension-color';
+import { Highlight } from '@tiptap/extension-highlight';
 
 // Extensión custom para soportar alineación de imágenes
 const CustomImageResize = ImageResize.extend({
@@ -63,6 +67,19 @@ const TAG_PALETTE = [
     '#8b5cf6', '#d946ef', '#f43f5e', '#71717a'
 ];
 
+const TEXT_COLORS = [
+    '#ffffff', '#cbd5e1', '#94a3b8', '#64748b',
+    '#ef4444', '#f97316', '#f59e0b', '#84cc16',
+    '#10b981', '#06b6d4', '#3b82f6', '#6366f1',
+    '#8b5cf6', '#d946ef', '#f43f5e', '#f472b6'
+];
+
+const HIGHLIGHT_COLORS = [
+    '#fef08a', '#fde047', '#fdba74', '#fca5a5',
+    '#86efac', '#67e8f9', '#93c5fd', '#c4b5fd',
+    '#f0abfc', '#fda4af', '#cbd5e1', '#94a3b8'
+];
+
 const getAutoColor = (tag, existingColors = {}) => {
     if (existingColors[tag]) return existingColors[tag];
     let hash = 0;
@@ -83,7 +100,11 @@ const SupportNotesPage = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState('');
-    const [tagFilter, setTagFilter] = useState('');
+    const [tagFilter, setTagFilter] = useState([]);
+    const [tagFilterInput, setTagFilterInput] = useState('');
+    const [showTagFilterDropdown, setShowTagFilterDropdown] = useState(false);
+    const tagFilterRef = useRef(null);
+    const tagFilterInputRef = useRef(null);
     const [selectedNote, setSelectedNote] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
     const [aiQuery, setAiQuery] = useState('');
@@ -98,10 +119,19 @@ const SupportNotesPage = () => {
     const [uploadingImage, setUploadingImage] = useState(false);
     const [lightboxImage, setLightboxImage] = useState(null);
     const [imageToolbar, setImageToolbar] = useState(null);
+    const [showAudioModal, setShowAudioModal] = useState(false);
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingTime, setRecordingTime] = useState(0);
+    const [audioBlob, setAudioBlob] = useState(null);
+    const [audioPreviewUrl, setAudioPreviewUrl] = useState(null);
+    const [uploadingAudio, setUploadingAudio] = useState(false);
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
     const editorRef = useRef(null);
     const tagInputRef = useRef(null);
+    const mediaRecorderRef = useRef(null);
+    const audioChunksRef = useRef([]);
+    const recordingIntervalRef = useRef(null);
 
     // Función reutilizable para subir imagen e insertarla en el editor
     const processImageFile = useCallback(async (file) => {
@@ -141,6 +171,9 @@ const SupportNotesPage = () => {
     const editor = useEditor({
         extensions: [
             StarterKit,
+            TextStyle,
+            Color.configure({ types: ['textStyle'] }),
+            Highlight.configure({ multicolor: true }),
             CustomImageResize.configure({
                 inline: false,
                 allowBase64: false,
@@ -253,6 +286,93 @@ const SupportNotesPage = () => {
             const response = await getSupportNotes();
             setNotes(response.data);
         } catch { /* silent */ }
+    };
+
+    // ── Audio Recording ───────────────────────────────────────────────────────
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = mediaRecorder;
+            audioChunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) audioChunksRef.current.push(event.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                setAudioBlob(blob);
+                setAudioPreviewUrl(URL.createObjectURL(blob));
+                stream.getTracks().forEach(t => t.stop());
+            };
+
+            mediaRecorder.start();
+            setIsRecording(true);
+            setRecordingTime(0);
+            recordingIntervalRef.current = setInterval(() => {
+                setRecordingTime(prev => prev + 1);
+            }, 1000);
+        } catch (err) {
+            toast.error('No se pudo acceder al micrófono. Verifica los permisos.');
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+        }
+        if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+        setIsRecording(false);
+    };
+
+    const insertRecordedAudio = async () => {
+        if (!audioBlob || !selectedNote?.id) return;
+        setUploadingAudio(true);
+        try {
+            const file = new File([audioBlob], `grabacion_${Date.now()}.webm`, { type: 'audio/webm' });
+            const res = await uploadNoteAudio(selectedNote.id, file, recordingTime);
+            const audioUrl = `${import.meta.env.PROD ? '' : 'http://localhost:5002'}${res.data.url}`;
+            editor?.chain().focus().insertContent(`<audio controls src="${audioUrl}" style="width:100%;margin:8px 0;"></audio><p></p>`).run();
+            toast.success('Audio insertado');
+            resetAudioState();
+            setShowAudioModal(false);
+        } catch (err) {
+            toast.error('Error al subir el audio');
+        } finally {
+            setUploadingAudio(false);
+        }
+    };
+
+    const handleAudioFileUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file || !selectedNote?.id) return;
+        setUploadingAudio(true);
+        try {
+            const res = await uploadNoteAudio(selectedNote.id, file);
+            const audioUrl = `${import.meta.env.PROD ? '' : 'http://localhost:5002'}${res.data.url}`;
+            editor?.chain().focus().insertContent(`<audio controls src="${audioUrl}" style="width:100%;margin:8px 0;"></audio><p></p>`).run();
+            toast.success('Audio insertado');
+            setShowAudioModal(false);
+        } catch (err) {
+            toast.error('Error al subir el audio');
+        } finally {
+            setUploadingAudio(false);
+        }
+    };
+
+    const resetAudioState = () => {
+        setAudioBlob(null);
+        setAudioPreviewUrl(null);
+        setRecordingTime(0);
+        audioChunksRef.current = [];
+        if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+    };
+
+    const formatTime = (seconds) => {
+        const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+        const s = (seconds % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
     };
 
     const handleSaveNote = async () => {
@@ -390,6 +510,9 @@ const SupportNotesPage = () => {
             if (tagInputRef.current && !tagInputRef.current.contains(e.target)) {
                 setShowTagDropdown(false);
             }
+            if (tagFilterRef.current && !tagFilterRef.current.contains(e.target)) {
+                setShowTagFilterDropdown(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -424,7 +547,8 @@ const SupportNotesPage = () => {
         const matchesText = (note.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (note.content || '').toLowerCase().includes(searchTerm.toLowerCase());
         const matchesDate = !dateFilter || (note.created_at && note.created_at.includes(dateFilter));
-        const matchesTag = !tagFilter || (note.tags || 'Soporte').split(',').map(t => t.trim()).includes(tagFilter);
+        const noteTags = (note.tags || 'Soporte').split(',').map(t => t.trim()).filter(Boolean);
+        const matchesTag = tagFilter.length === 0 || tagFilter.some(tf => noteTags.includes(tf));
         return matchesText && matchesDate && matchesTag;
     });
 
@@ -471,20 +595,62 @@ const SupportNotesPage = () => {
                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={15} />
                         <input type="date" className="w-full bg-slate-800/80 border border-slate-700/60 rounded-xl pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/40 transition-all text-slate-300 text-sm hover:border-slate-600" value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
                     </div>
-                    <div className="relative w-48">
-                        <select
-                            value={tagFilter}
-                            onChange={e => setTagFilter(e.target.value)}
-                            className="w-full h-full bg-slate-800/80 border border-slate-700/60 rounded-xl px-3 pr-8 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/40 transition-all text-slate-300 text-sm appearance-none cursor-pointer hover:border-slate-600"
-                        >
-                            <option value="">📑 Todas las etiquetas</option>
-                            {Array.from(new Set(notes.flatMap(n => (n.tags || 'Soporte').split(',').map(t => t.trim())))).sort().map(tag => (
-                                <option key={tag} value={tag}>{tag}</option>
+                    <div className="relative w-64" ref={tagFilterRef}>
+                        <div className="w-full min-h-[42px] bg-slate-800/80 border border-slate-700/60 rounded-xl px-3 py-1.5 focus-within:ring-2 focus-within:ring-amber-500/40 focus-within:border-amber-500/40 transition-all text-slate-300 text-sm hover:border-slate-600 flex flex-wrap items-center gap-1.5">
+                            {tagFilter.map(tag => (
+                                <span key={tag} className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-md text-[11px] font-medium bg-slate-700/60 text-slate-200 border border-slate-600/50">
+                                    {tag}
+                                    <button onClick={(e) => { e.stopPropagation(); setTagFilter(prev => prev.filter(t => t !== tag)); }} className="hover:text-white text-slate-400 transition-colors">
+                                        <X size={11} strokeWidth={2.5} />
+                                    </button>
+                                </span>
                             ))}
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                            <svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            <input
+                                type="text"
+                                className="bg-transparent border-none focus:outline-none text-slate-300 text-sm placeholder:text-slate-600 flex-1 min-w-[80px] py-1"
+                                placeholder={tagFilter.length === 0 ? '📑 Filtrar por etiquetas...' : 'Buscar más etiquetas...'}
+                                value={tagFilterInput}
+                                onChange={e => { setTagFilterInput(e.target.value); setShowTagFilterDropdown(true); }}
+                                onFocus={() => setShowTagFilterDropdown(true)}
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter') {
+                                        const available = Array.from(new Set(notes.flatMap(n => (n.tags || 'Soporte').split(',').map(t => t.trim()).filter(Boolean)))).filter(t => t.toLowerCase().includes(tagFilterInput.toLowerCase()) && !tagFilter.includes(t)).sort();
+                                        if (available.length > 0) {
+                                            setTagFilter(prev => [...prev, available[0]]);
+                                            setTagFilterInput('');
+                                        }
+                                    }
+                                    if (e.key === 'Backspace' && !tagFilterInput && tagFilter.length > 0) {
+                                        setTagFilter(prev => prev.slice(0, -1));
+                                    }
+                                }}
+                                ref={tagFilterInputRef}
+                            />
+                            {tagFilter.length > 0 && (
+                                <button onClick={() => { setTagFilter([]); setTagFilterInput(''); }} className="text-slate-500 hover:text-slate-300 transition-colors ml-auto" title="Limpiar filtros">
+                                    <X size={14} />
+                                </button>
+                            )}
                         </div>
+                        {showTagFilterDropdown && (
+                            <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-[180px] overflow-y-auto custom-scrollbar">
+                                {Array.from(new Set(notes.flatMap(n => (n.tags || 'Soporte').split(',').map(t => t.trim()).filter(Boolean)))).filter(t => t.toLowerCase().includes(tagFilterInput.toLowerCase()) && !tagFilter.includes(t)).sort().length === 0 ? (
+                                    <div className="px-3 py-2 text-[11px] text-slate-500">No hay etiquetas disponibles</div>
+                                ) : (
+                                    Array.from(new Set(notes.flatMap(n => (n.tags || 'Soporte').split(',').map(t => t.trim()).filter(Boolean)))).filter(t => t.toLowerCase().includes(tagFilterInput.toLowerCase()) && !tagFilter.includes(t)).sort().map(tag => {
+                                        const allColors = {};
+                                        notes.forEach(n => Object.assign(allColors, parseTagColors(n.tag_colors)));
+                                        const color = allColors[tag] || getAutoColor(tag, allColors);
+                                        return (
+                                            <button key={tag} onClick={() => { setTagFilter(prev => [...prev, tag]); setTagFilterInput(''); setTimeout(() => tagFilterInputRef.current?.focus(), 0); }} className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 flex items-center gap-2 transition-colors">
+                                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                                                {tag}
+                                            </button>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -573,6 +739,15 @@ const SupportNotesPage = () => {
                                     {uploadingImage ? <Spinner size="sm" /> : <ImageIcon size={14} />}
                                     {uploadingImage ? 'Subiendo...' : 'Imagen'}
                                 </button>
+                                <button
+                                    onClick={() => { if (!selectedNote?.id) { toast.error('Guarda la nota primero'); } else { setShowAudioModal(true); } }}
+                                    disabled={uploadingAudio}
+                                    className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-400 hover:text-slate-200 rounded-lg transition-all text-xs font-medium border border-slate-700/50 hover:border-slate-600"
+                                    title="Insertar audio"
+                                >
+                                    {uploadingAudio ? <Spinner size="sm" /> : <Mic size={14} />}
+                                    {uploadingAudio ? 'Subiendo...' : 'Audio'}
+                                </button>
                                 {selectedNote && (
                                     <button onClick={() => handleDeleteNote(selectedNote.id)} className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all" title="Eliminar">
                                         <Trash2 size={16} />
@@ -644,6 +819,46 @@ const SupportNotesPage = () => {
                             </div>
                         </div>
 
+                        {/* Toolbar de formato */}
+                        <div className="flex items-center gap-1.5 mb-2 px-1">
+                            <button
+                                onClick={() => editor?.chain().focus().toggleBold().run()}
+                                className={`p-1.5 rounded-md transition-colors ${editor?.isActive('bold') ? 'bg-amber-500/20 text-amber-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
+                                title="Negrita"
+                            >
+                                <Bold size={15} />
+                            </button>
+                            <div className="w-px h-4 bg-slate-700 mx-0.5" />
+                            <div className="relative group/color">
+                                <button
+                                    className={`p-1.5 rounded-md transition-colors ${editor?.getAttributes('textStyle').color ? 'bg-amber-500/20 text-amber-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
+                                    title="Color de texto"
+                                >
+                                    <Type size={15} />
+                                </button>
+                                <div className="hidden group-hover/color:flex absolute top-full left-0 mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg p-1.5 gap-1 shadow-xl flex-wrap w-[140px]">
+                                    {TEXT_COLORS.map(c => (
+                                        <button key={c} onClick={() => editor?.chain().focus().setColor(c).run()} className="w-5 h-5 rounded-full border border-white/10 hover:scale-110 transition-transform" style={{ backgroundColor: c }} />
+                                    ))}
+                                    <button onClick={() => editor?.chain().focus().unsetColor().run()} className="w-5 h-5 rounded-full border border-slate-600 flex items-center justify-center text-[9px] text-slate-400 hover:text-white hover:bg-slate-700 transition-colors" title="Sin color">✕</button>
+                                </div>
+                            </div>
+                            <div className="relative group/hl">
+                                <button
+                                    className={`p-1.5 rounded-md transition-colors ${editor?.isActive('highlight') ? 'bg-amber-500/20 text-amber-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
+                                    title="Resaltar texto"
+                                >
+                                    <Highlighter size={15} />
+                                </button>
+                                <div className="hidden group-hover/hl:flex absolute top-full left-0 mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg p-1.5 gap-1 shadow-xl flex-wrap w-[140px]">
+                                    {HIGHLIGHT_COLORS.map(c => (
+                                        <button key={c} onClick={() => editor?.chain().focus().toggleHighlight({ color: c }).run()} className="w-5 h-5 rounded-full border border-white/10 hover:scale-110 transition-transform" style={{ backgroundColor: c }} />
+                                    ))}
+                                    <button onClick={() => editor?.chain().focus().unsetHighlight().run()} className="w-5 h-5 rounded-full border border-slate-600 flex items-center justify-center text-[9px] text-slate-400 hover:text-white hover:bg-slate-700 transition-colors" title="Sin resaltar">✕</button>
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="flex-1 min-h-[280px] lg:min-h-[320px] max-h-[400px] border border-slate-800/60 rounded-xl p-4 overflow-y-auto custom-scrollbar bg-slate-950/30">
                             <EditorContent editor={editor} />
                         </div>
@@ -669,6 +884,18 @@ const SupportNotesPage = () => {
                                 </button>
                             </div>
                         )}
+
+                        {/* Consejo de etiquetas */}
+                        <div className="mt-2 bg-gradient-to-r from-amber-500/5 to-orange-500/5 border border-amber-500/10 rounded-lg p-2.5">
+                            <p className="text-[11px] text-amber-300/80 font-semibold mb-1 flex items-center gap-1.5">
+                                <span className="w-1 h-1 rounded-full bg-amber-400" /> Consejo para etiquetar
+                            </p>
+                            <ul className="text-[10px] text-slate-500 space-y-1">
+                                <li className="flex items-start gap-1.5"><span className="text-amber-500/60 mt-0.5">▸</span> Usa etiquetas por <strong className="text-slate-400">cliente</strong> o <strong className="text-slate-400">proyecto</strong> para agrupar fácilmente.</li>
+                                <li className="flex items-start gap-1.5"><span className="text-amber-500/60 mt-0.5">▸</span> Sé específico: <em className="text-slate-500">"Redes", "Servidor", "Lago Agrio"</em> en vez de <em className="text-slate-500">"General"</em>.</li>
+                                <li className="flex items-start gap-1.5"><span className="text-amber-500/60 mt-0.5">▸</span> Consistentes = búsquedas más rápidas y mejor ayuda de la IA.</li>
+                            </ul>
+                        </div>
 
                         {/* Hint de atajos */}
                         <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-600">
@@ -734,6 +961,75 @@ const SupportNotesPage = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Audio Modal */}
+            {showAudioModal && (
+                <div className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => { setShowAudioModal(false); resetAudioState(); }}>
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-5">
+                            <h3 className="text-lg font-semibold text-white">Insertar Audio</h3>
+                            <button onClick={() => { setShowAudioModal(false); resetAudioState(); }} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"><X size={18} /></button>
+                        </div>
+
+                        {/* Subir archivo */}
+                        <div className="mb-4">
+                            <label className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 border-dashed rounded-xl cursor-pointer transition-colors text-sm text-slate-300 hover:text-white">
+                                <Upload size={16} /> Seleccionar archivo (.mp3, .m4a, .wav)
+                                <input type="file" accept="audio/*" className="hidden" onChange={handleAudioFileUpload} />
+                            </label>
+                        </div>
+
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="flex-1 h-px bg-slate-800" />
+                            <span className="text-xs text-slate-600">o</span>
+                            <div className="flex-1 h-px bg-slate-800" />
+                        </div>
+
+                        {/* Grabar */}
+                        <div className="flex flex-col items-center gap-4">
+                            {!audioPreviewUrl ? (
+                                <button
+                                    onClick={isRecording ? stopRecording : startRecording}
+                                    className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg ${isRecording ? 'bg-red-500 hover:bg-red-400 shadow-red-500/30 animate-pulse' : 'bg-gradient-to-br from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 shadow-amber-500/20'}`}
+                                >
+                                    {isRecording ? <Square size={20} className="text-white" fill="white" /> : <Mic size={24} className="text-white" />}
+                                </button>
+                            ) : (
+                                <audio controls src={audioPreviewUrl} className="w-full" />
+                            )}
+
+                            {isRecording && (
+                                <div className="text-xl font-mono font-bold text-red-400 tabular-nums">
+                                    {formatTime(recordingTime)}
+                                </div>
+                            )}
+
+                            {audioPreviewUrl && (
+                                <div className="flex gap-2 w-full">
+                                    <button
+                                        onClick={insertRecordedAudio}
+                                        disabled={uploadingAudio}
+                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white rounded-xl text-sm font-semibold transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50"
+                                    >
+                                        {uploadingAudio ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                                        {uploadingAudio ? 'Subiendo...' : 'Insertar grabación'}
+                                    </button>
+                                    <button
+                                        onClick={resetAudioState}
+                                        className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-medium transition-all"
+                                    >
+                                        Regrabar
+                                    </button>
+                                </div>
+                            )}
+
+                            {!isRecording && !audioPreviewUrl && (
+                                <p className="text-xs text-slate-500">Presiona para grabar desde el micrófono</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Lightbox / Modal de imagen */}
             {lightboxImage && (
