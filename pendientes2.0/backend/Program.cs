@@ -59,6 +59,46 @@ using (var scope = app.Services.CreateScope())
     {
         logger.LogError(ex, "Migration error.");
     }
+
+    // Schema patch: tabla de archivos adjuntos para notas de soporte
+    try
+    {
+        var isSqlite = context.Database.ProviderName?.Contains("Sqlite") == true;
+        if (isSqlite)
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE IF NOT EXISTS support_note_files (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    support_note_id INTEGER NOT NULL,
+                    file_name TEXT NOT NULL,
+                    content_type TEXT NOT NULL,
+                    file_path TEXT NOT NULL,
+                    file_size INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (support_note_id) REFERENCES support_notes(id) ON DELETE CASCADE
+                )");
+        }
+        else
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+                IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'support_note_files')
+                CREATE TABLE support_note_files (
+                    id int IDENTITY(1,1) PRIMARY KEY,
+                    support_note_id int NOT NULL,
+                    file_name nvarchar(max) NOT NULL,
+                    content_type nvarchar(max) NOT NULL,
+                    file_path nvarchar(max) NOT NULL,
+                    file_size bigint NOT NULL DEFAULT 0,
+                    created_at nvarchar(max) NOT NULL,
+                    FOREIGN KEY (support_note_id) REFERENCES support_notes(id) ON DELETE CASCADE
+                )");
+        }
+        logger.LogInformation("Schema patch for support_note_files applied.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Schema patch error for support_note_files.");
+    }
 }
 
 // ── Static files setup ────────────────────────────────────────────────────────

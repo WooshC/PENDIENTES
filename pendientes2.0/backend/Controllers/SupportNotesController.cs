@@ -38,6 +38,7 @@ public class SupportNotesController : ControllerBase
     {
         var note = await _context.SupportNotes
             .Include(n => n.Images) // Incluir imágenes relacionadas
+            .Include(n => n.Files)  // Incluir archivos adjuntos
             .FirstOrDefaultAsync(n => n.Id == id);
 
         if (note == null) return NotFound();
@@ -97,9 +98,19 @@ public class SupportNotesController : ControllerBase
             }
         }
 
+        // Borrar archivos físicos adjuntos
+        foreach (var file in note.Files)
+        {
+            var fullPath = Path.Combine(_environment.WebRootPath, file.FilePath.TrimStart('/'));
+            if (System.IO.File.Exists(fullPath))
+            {
+                System.IO.File.Delete(fullPath);
+            }
+        }
+
         _context.SupportNotes.Remove(note);
         await _context.SaveChangesAsync();
-        return Ok(new { message = "Nota y sus imágenes eliminadas" });
+        return Ok(new { message = "Nota y sus archivos eliminados" });
     }
 
     // POST: api/supportnotes/5/images
@@ -333,6 +344,107 @@ public class SupportNotesController : ControllerBase
         await _context.SaveChangesAsync();
 
         return Ok(new { message = "Audio eliminado" });
+    }
+
+    // ── ARCHIVOS ADJUNTOS ─────────────────────────────────────────────────────
+
+    private const long _maxAttachmentSize = 100 * 1024 * 1024; // 100MB
+
+    // POST: api/supportnotes/5/files
+    [HttpPost("{noteId}/files")]
+    public async Task<ActionResult<object>> UploadFile(int noteId, IFormFile file)
+    {
+        var note = await _context.SupportNotes.FindAsync(noteId);
+        if (note == null) return NotFound("Nota no encontrada");
+
+        if (file == null || file.Length == 0)
+            return BadRequest("No se envió archivo");
+
+        if (file.Length > _maxAttachmentSize)
+            return BadRequest("Archivo muy grande (máx 100MB)");
+
+        var uploadPath = _configuration["ImageStorage:UploadPath"] ?? "uploads/support-notes";
+        var filesFolder = Path.Combine(_environment.WebRootPath, uploadPath, noteId.ToString(), "files");
+        if (!Directory.Exists(filesFolder))
+            Directory.CreateDirectory(filesFolder);
+
+        var extension = Path.GetExtension(file.FileName).ToLower();
+        var uniqueName = $"{Guid.NewGuid():N}{extension}";
+        var relativePath = $"/{uploadPath}/{noteId}/files/{uniqueName}";
+        var fullPath = Path.Combine(filesFolder, uniqueName);
+
+        using (var stream = new FileStream(fullPath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var attachment = new SupportNoteFile
+        {
+            SupportNoteId = noteId,
+            FileName = file.FileName,
+            ContentType = file.ContentType,
+            FilePath = relativePath,
+            FileSize = file.Length
+        };
+
+        _context.SupportNoteFiles.Add(attachment);
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            id = attachment.Id,
+            url = $"/api/supportnotes/files/{attachment.Id}",
+            fileName = attachment.FileName,
+            contentType = attachment.ContentType,
+            fileSize = attachment.FileSize
+        });
+    }
+
+    // GET: api/supportnotes/files/5
+    [HttpGet("files/{fileId}")]
+    public async Task<IActionResult> GetFile(int fileId)
+    {
+        var file = await _context.SupportNoteFiles.FindAsync(fileId);
+        if (file == null) return NotFound();
+
+        var fullPath = Path.Combine(_environment.WebRootPath, file.FilePath.TrimStart('/'));
+        if (!System.IO.File.Exists(fullPath))
+            return NotFound("Archivo no encontrado");
+
+        var provider = new FileExtensionContentTypeProvider();
+        if (!provider.TryGetContentType(file.FileName, out var contentType))
+            contentType = file.ContentType;
+
+        return PhysicalFile(fullPath, contentType, file.FileName);
+    }
+
+    // DELETE: api/supportnotes/files/5
+    [HttpDelete("files/{fileId}")]
+    public async Task<IActionResult> DeleteFile(int fileId)
+    {
+        var file = await _context.SupportNoteFiles.FindAsync(fileId);
+        if (file == null) return NotFound();
+
+        var fullPath = Path.Combine(_environment.WebRootPath, file.FilePath.TrimStart('/'));
+        if (System.IO.File.Exists(fullPath))
+            System.IO.File.Delete(fullPath);
+
+        _context.SupportNoteFiles.Remove(file);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Archivo eliminado" });
+    }
+
+    // GET: api/supportnotes/5/files
+    [HttpGet("{noteId}/files")]
+    public async Task<ActionResult<IEnumerable<SupportNoteFile>>> GetNoteFiles(int noteId)
+    {
+        var files = await _context.SupportNoteFiles
+            .Where(f => f.SupportNoteId == noteId)
+            .OrderByDescending(f => f.CreatedAt)
+            .ToListAsync();
+
+        return files;
     }
 
     // Método auxiliar: Eliminar imágenes que ya no están referenciadas en el HTML
