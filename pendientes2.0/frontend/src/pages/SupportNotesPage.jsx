@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-    Calendar, Plus, Save, Trash2, BrainCircuit,
-    Send, StickyNote, Clock, ImageIcon, CheckCircle2,
+    Calendar, Plus, Save, Trash2,
+    StickyNote, Clock, ImageIcon, CheckCircle2,
     Loader2, Eye, AlignLeft, AlignCenter, AlignRight, X,
-    Mic, Square, Upload, Bold, Highlighter, Type
+    Mic, Square, Upload, Bold, Underline, Highlighter, Type
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
@@ -39,7 +39,7 @@ const CustomImageResize = ImageResize.extend({
 });
 import {
     getSupportNotes, addSupportNote, updateSupportNote,
-    deleteSupportNote, askAi, getChatHistory, uploadNoteImage
+    deleteSupportNote, uploadNoteImage
 } from '../api';
 import { SearchInput, Spinner, EmptyState } from '../components/ui';
 
@@ -107,15 +107,15 @@ const SupportNotesPage = () => {
     const tagFilterInputRef = useRef(null);
     const [selectedNote, setSelectedNote] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
-    const [aiQuery, setAiQuery] = useState('');
-    const [chatHistory, setChatHistory] = useState([]);
-    const [isAiThinking, setIsAiThinking] = useState(false);
     const [mobileTab, setMobileTab] = useState('notes');
     const [noteTitle, setNoteTitle] = useState('');
     const [noteTags, setNoteTags] = useState([]);
     const [noteTagColors, setNoteTagColors] = useState({});
     const [tagInput, setTagInput] = useState('');
     const [showTagDropdown, setShowTagDropdown] = useState(false);
+    const [openTagColorPicker, setOpenTagColorPicker] = useState(null);
+    const [showTextColorPicker, setShowTextColorPicker] = useState(false);
+    const [showHighlightPicker, setShowHighlightPicker] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [lightboxImage, setLightboxImage] = useState(null);
     const [imageToolbar, setImageToolbar] = useState(null);
@@ -125,10 +125,11 @@ const SupportNotesPage = () => {
     const [audioBlob, setAudioBlob] = useState(null);
     const [audioPreviewUrl, setAudioPreviewUrl] = useState(null);
     const [uploadingAudio, setUploadingAudio] = useState(false);
-    const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
     const editorRef = useRef(null);
     const tagInputRef = useRef(null);
+    const textColorRef = useRef(null);
+    const highlightRef = useRef(null);
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
     const recordingIntervalRef = useRef(null);
@@ -247,27 +248,9 @@ const SupportNotesPage = () => {
         editor.chain().focus().updateAttributes('image', { dataAlign: align }).run();
     };
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    };
-
-    useEffect(() => { scrollToBottom(); }, [chatHistory, isAiThinking]);
-
     useEffect(() => {
         fetchNotes();
-        fetchChatHistory();
     }, []);
-
-
-
-    const fetchChatHistory = async () => {
-        try {
-            const response = await getChatHistory();
-            setChatHistory(response.data);
-        } catch (error) {
-            console.error('Error fetching chat history:', error);
-        }
-    };
 
     const fetchNotes = async () => {
         try {
@@ -492,6 +475,7 @@ const SupportNotesPage = () => {
 
     const setTagColor = (tag, color) => {
         setNoteTagColors(prev => ({ ...prev, [tag]: color }));
+        setOpenTagColorPicker(null);
     };
 
     const handleTagInputKeyDown = (e) => {
@@ -509,9 +493,16 @@ const SupportNotesPage = () => {
         const handleClickOutside = (e) => {
             if (tagInputRef.current && !tagInputRef.current.contains(e.target)) {
                 setShowTagDropdown(false);
+                setOpenTagColorPicker(null);
             }
             if (tagFilterRef.current && !tagFilterRef.current.contains(e.target)) {
                 setShowTagFilterDropdown(false);
+            }
+            if (textColorRef.current && !textColorRef.current.contains(e.target)) {
+                setShowTextColorPicker(false);
+            }
+            if (highlightRef.current && !highlightRef.current.contains(e.target)) {
+                setShowHighlightPicker(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -523,24 +514,6 @@ const SupportNotesPage = () => {
         if (!file) return;
         await processImageFile(file);
         e.target.value = '';
-    };
-
-    const handleAiAsk = async () => {
-        if (!aiQuery.trim()) return;
-        const currentQuery = aiQuery;
-        setAiQuery('');
-        setChatHistory(prev => [...prev, { role: 'user', content: currentQuery }]);
-        setIsAiThinking(true);
-        try {
-            const response = await askAi(currentQuery);
-            setChatHistory(prev => [...prev, { role: 'ai', content: response.data.response }]);
-        } catch (error) {
-            const errorMsg = error.response?.data?.error || 'Error al conectar con la IA';
-            toast.error(errorMsg);
-            setChatHistory(prev => [...prev, { role: 'error', content: `Error: ${errorMsg}` }]);
-        } finally {
-            setIsAiThinking(false);
-        }
     };
 
     const filteredNotes = notes.filter(note => {
@@ -586,7 +559,7 @@ const SupportNotesPage = () => {
             </header>
 
             {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-3 bg-slate-900/60 p-3 rounded-2xl border border-slate-800/80 backdrop-blur-sm">
+            <div className="relative z-20 flex flex-col sm:flex-row gap-3 bg-slate-900/60 p-3 rounded-2xl border border-slate-800/80 backdrop-blur-sm">
                 <div className="flex-1 relative group">
                     <SearchInput dark value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Buscar en notas..." className="w-full py-2.5" />
                 </div>
@@ -660,7 +633,6 @@ const SupportNotesPage = () => {
                 {[
                     { key: 'notes', label: 'Notas', icon: <StickyNote size={15} /> },
                     { key: 'editor', label: 'Editor', icon: <Save size={15} /> },
-                    { key: 'ai', label: 'IA', icon: <BrainCircuit size={15} /> },
                 ].map(tab => (
                     <button key={tab.key} onClick={() => setMobileTab(tab.key)}
                         className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold transition-all ${mobileTab === tab.key ? 'bg-amber-500/10 text-amber-400 border-b-2 border-amber-500' : 'text-slate-500 hover:text-slate-300'}`}>
@@ -674,7 +646,7 @@ const SupportNotesPage = () => {
 
                 {/* Notes List */}
                 <div className={`lg:col-span-4 lg:block ${mobileTab === 'notes' ? 'block' : 'hidden'}`}>
-                    <div className="space-y-2 max-h-[calc(100vh-22rem)] lg:max-h-[calc(100vh-20rem)] overflow-y-auto pr-1 custom-scrollbar">
+                    <div className="space-y-2">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center p-12 gap-4">
                                 <Spinner size="md" />
@@ -715,11 +687,11 @@ const SupportNotesPage = () => {
                     </div>
                 </div>
 
-                {/* Editor + AI */}
+                {/* Editor */}
                 <div className={`lg:col-span-8 flex flex-col gap-4 ${mobileTab !== 'notes' ? 'block' : 'hidden lg:flex'}`}>
 
                     {/* Note Editor */}
-                    <div className={`${mobileTab === 'ai' ? 'hidden lg:flex' : 'flex'} flex-col bg-gradient-to-b from-slate-900/80 to-slate-900/40 border border-slate-800/60 rounded-2xl p-5 backdrop-blur-sm shadow-xl shadow-black/10`}>
+                    <div className="flex flex-col bg-gradient-to-b from-slate-900/80 to-slate-900/40 border border-slate-800/60 rounded-2xl p-5 backdrop-blur-sm shadow-xl shadow-black/10">
                         {/* Toolbar del Editor */}
                         <div className="flex items-center justify-between mb-5">
                             <div className="flex items-center gap-2.5">
@@ -771,18 +743,26 @@ const SupportNotesPage = () => {
                         <div className="mb-4" ref={tagInputRef}>
                             <div className="flex flex-wrap items-center gap-2 mb-2">
                                 {noteTags.map(tag => (
-                                    <span key={tag} className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-lg text-[11px] font-semibold shadow-sm border group/tag relative" style={{ backgroundColor: (noteTagColors[tag] || getAutoColor(tag, noteTagColors)) + '18', color: noteTagColors[tag] || getAutoColor(tag, noteTagColors), borderColor: (noteTagColors[tag] || getAutoColor(tag, noteTagColors)) + '35' }}>
-                                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: noteTagColors[tag] || getAutoColor(tag, noteTagColors) }} />
+                                    <span key={tag} className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-lg text-[11px] font-semibold shadow-sm border relative" style={{ backgroundColor: (noteTagColors[tag] || getAutoColor(tag, noteTagColors)) + '18', color: noteTagColors[tag] || getAutoColor(tag, noteTagColors), borderColor: (noteTagColors[tag] || getAutoColor(tag, noteTagColors)) + '35' }}>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); setOpenTagColorPicker(prev => prev === tag ? null : tag); }}
+                                            className="w-2 h-2 rounded-full shrink-0 hover:scale-125 transition-transform"
+                                            style={{ backgroundColor: noteTagColors[tag] || getAutoColor(tag, noteTagColors) }}
+                                            title="Cambiar color"
+                                        />
                                         {tag}
                                         <button onClick={() => removeTag(tag)} className="hover:text-white transition-colors opacity-60 hover:opacity-100">
                                             <X size={11} strokeWidth={2.5} />
                                         </button>
                                         {/* Color picker mini */}
-                                        <div className="hidden group-hover/tag:flex absolute top-full left-0 mt-1 z-20 bg-slate-800 border border-slate-700 rounded-lg p-1.5 gap-1 shadow-xl">
-                                            {TAG_PALETTE.map(c => (
-                                                <button key={c} onClick={() => setTagColor(tag, c)} className="w-5 h-5 rounded-full border border-white/10 hover:scale-110 transition-transform" style={{ backgroundColor: c }} />
-                                            ))}
-                                        </div>
+                                        {openTagColorPicker === tag && (
+                                            <div className="flex absolute top-full left-0 mt-1 z-20 bg-slate-800 border border-slate-700 rounded-lg p-1.5 gap-1 shadow-xl">
+                                                {TAG_PALETTE.map(c => (
+                                                    <button key={c} onClick={() => setTagColor(tag, c)} className="w-5 h-5 rounded-full border border-white/10 hover:scale-110 transition-transform" style={{ backgroundColor: c }} />
+                                                ))}
+                                            </div>
+                                        )}
                                     </span>
                                 ))}
                             </div>
@@ -828,38 +808,51 @@ const SupportNotesPage = () => {
                             >
                                 <Bold size={15} />
                             </button>
+                            <button
+                                onClick={() => editor?.chain().focus().toggleUnderline().run()}
+                                className={`p-1.5 rounded-md transition-colors ${editor?.isActive('underline') ? 'bg-amber-500/20 text-amber-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
+                                title="Subrayado"
+                            >
+                                <Underline size={15} />
+                            </button>
                             <div className="w-px h-4 bg-slate-700 mx-0.5" />
-                            <div className="relative group/color">
+                            <div className="relative" ref={textColorRef}>
                                 <button
+                                    onClick={() => { setShowTextColorPicker(v => !v); setShowHighlightPicker(false); }}
                                     className={`p-1.5 rounded-md transition-colors ${editor?.getAttributes('textStyle').color ? 'bg-amber-500/20 text-amber-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
                                     title="Color de texto"
                                 >
                                     <Type size={15} />
                                 </button>
-                                <div className="hidden group-hover/color:flex absolute top-full left-0 mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg p-1.5 gap-1 shadow-xl flex-wrap w-[140px]">
-                                    {TEXT_COLORS.map(c => (
-                                        <button key={c} onClick={() => editor?.chain().focus().setColor(c).run()} className="w-5 h-5 rounded-full border border-white/10 hover:scale-110 transition-transform" style={{ backgroundColor: c }} />
-                                    ))}
-                                    <button onClick={() => editor?.chain().focus().unsetColor().run()} className="w-5 h-5 rounded-full border border-slate-600 flex items-center justify-center text-[9px] text-slate-400 hover:text-white hover:bg-slate-700 transition-colors" title="Sin color">✕</button>
-                                </div>
+                                {showTextColorPicker && (
+                                    <div className="flex absolute top-full left-0 mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg p-1.5 gap-1 shadow-xl flex-wrap w-[140px]">
+                                        {TEXT_COLORS.map(c => (
+                                            <button key={c} onClick={() => { editor?.chain().focus().setColor(c).run(); setShowTextColorPicker(false); }} className="w-5 h-5 rounded-full border border-white/10 hover:scale-110 transition-transform" style={{ backgroundColor: c }} />
+                                        ))}
+                                        <button onClick={() => { editor?.chain().focus().unsetColor().run(); setShowTextColorPicker(false); }} className="w-5 h-5 rounded-full border border-slate-600 flex items-center justify-center text-[9px] text-slate-400 hover:text-white hover:bg-slate-700 transition-colors" title="Sin color">✕</button>
+                                    </div>
+                                )}
                             </div>
-                            <div className="relative group/hl">
+                            <div className="relative" ref={highlightRef}>
                                 <button
+                                    onClick={() => { setShowHighlightPicker(v => !v); setShowTextColorPicker(false); }}
                                     className={`p-1.5 rounded-md transition-colors ${editor?.isActive('highlight') ? 'bg-amber-500/20 text-amber-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
                                     title="Resaltar texto"
                                 >
                                     <Highlighter size={15} />
                                 </button>
-                                <div className="hidden group-hover/hl:flex absolute top-full left-0 mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg p-1.5 gap-1 shadow-xl flex-wrap w-[140px]">
-                                    {HIGHLIGHT_COLORS.map(c => (
-                                        <button key={c} onClick={() => editor?.chain().focus().toggleHighlight({ color: c }).run()} className="w-5 h-5 rounded-full border border-white/10 hover:scale-110 transition-transform" style={{ backgroundColor: c }} />
-                                    ))}
-                                    <button onClick={() => editor?.chain().focus().unsetHighlight().run()} className="w-5 h-5 rounded-full border border-slate-600 flex items-center justify-center text-[9px] text-slate-400 hover:text-white hover:bg-slate-700 transition-colors" title="Sin resaltar">✕</button>
-                                </div>
+                                {showHighlightPicker && (
+                                    <div className="flex absolute top-full left-0 mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg p-1.5 gap-1 shadow-xl flex-wrap w-[140px]">
+                                        {HIGHLIGHT_COLORS.map(c => (
+                                            <button key={c} onClick={() => { editor?.chain().focus().toggleHighlight({ color: c }).run(); setShowHighlightPicker(false); }} className="w-5 h-5 rounded-full border border-white/10 hover:scale-110 transition-transform" style={{ backgroundColor: c }} />
+                                        ))}
+                                        <button onClick={() => { editor?.chain().focus().unsetHighlight().run(); setShowHighlightPicker(false); }} className="w-5 h-5 rounded-full border border-slate-600 flex items-center justify-center text-[9px] text-slate-400 hover:text-white hover:bg-slate-700 transition-colors" title="Sin resaltar">✕</button>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
-                        <div className="flex-1 min-h-[280px] lg:min-h-[320px] max-h-[400px] border border-slate-800/60 rounded-xl p-4 overflow-y-auto custom-scrollbar bg-slate-950/30">
+                        <div className="flex-1 min-h-[280px] lg:min-h-[320px] border border-slate-800/60 rounded-xl p-4 bg-slate-950/30">
                             <EditorContent editor={editor} />
                         </div>
 
@@ -893,70 +886,13 @@ const SupportNotesPage = () => {
                             <ul className="text-[10px] text-slate-500 space-y-1">
                                 <li className="flex items-start gap-1.5"><span className="text-amber-500/60 mt-0.5">▸</span> Usa etiquetas por <strong className="text-slate-400">cliente</strong> o <strong className="text-slate-400">proyecto</strong> para agrupar fácilmente.</li>
                                 <li className="flex items-start gap-1.5"><span className="text-amber-500/60 mt-0.5">▸</span> Sé específico: <em className="text-slate-500">"Redes", "Servidor", "Lago Agrio"</em> en vez de <em className="text-slate-500">"General"</em>.</li>
-                                <li className="flex items-start gap-1.5"><span className="text-amber-500/60 mt-0.5">▸</span> Consistentes = búsquedas más rápidas y mejor ayuda de la IA.</li>
+                                <li className="flex items-start gap-1.5"><span className="text-amber-500/60 mt-0.5">▸</span> Consistentes = búsquedas más rápidas y organización más clara.</li>
                             </ul>
                         </div>
 
                         {/* Hint de atajos */}
                         <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-600">
                             <span>💡 Puedes pegar imágenes directamente o arrastrarlas aquí</span>
-                        </div>
-                    </div>
-
-                    {/* AI Assistant */}
-                    <div className={`${mobileTab === 'editor' ? 'hidden lg:flex' : 'flex'} flex-col bg-gradient-to-b from-slate-900/80 to-slate-950/80 border border-slate-800/60 rounded-2xl p-5 backdrop-blur-sm shadow-xl shadow-black/10`}>
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500/20 to-purple-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400">
-                                <BrainCircuit size={16} />
-                            </div>
-                            <h2 className="text-base font-semibold text-slate-200">Asistente IA</h2>
-                        </div>
-
-                        {/* Consejos para preguntar */}
-                        <div className="bg-gradient-to-r from-violet-500/5 to-purple-500/5 border border-violet-500/10 rounded-xl p-3.5 mb-3">
-                            <p className="text-[11px] text-violet-300 font-semibold mb-2 flex items-center gap-1.5">
-                                <span className="w-1 h-1 rounded-full bg-violet-400" /> Consejos para preguntar
-                            </p>
-                            <ul className="text-[10px] text-slate-500 space-y-1.5">
-                                <li className="flex items-start gap-1.5"><span className="text-violet-500/60 mt-0.5">▸</span> Menciona una <strong className="text-slate-400">etiqueta</strong>: <em className="text-slate-500">"¿Qué tengo sobre Redes?"</em></li>
-                                <li className="flex items-start gap-1.5"><span className="text-violet-500/60 mt-0.5">▸</span> Sé específico con el <strong className="text-slate-400">tema</strong>: <em className="text-slate-500">"Fórmulas de Lago Agrio"</em></li>
-                                <li className="flex items-start gap-1.5"><span className="text-violet-500/60 mt-0.5">▸</span> La IA solo ve tus <strong className="text-slate-400">notas</strong>, no tiene internet.</li>
-                            </ul>
-                        </div>
-
-                        <div className="flex-1 min-h-[180px] max-h-[320px] bg-slate-950/40 border border-slate-800/40 rounded-xl p-4 overflow-y-auto space-y-3 custom-scrollbar mb-3">
-                            {chatHistory.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-full py-8 text-center">
-                                    <BrainCircuit size={32} className="text-slate-700 mb-3" />
-                                    <p className="text-slate-600 text-sm">Haz preguntas sobre tus notas</p>
-                                    <p className="text-slate-700 text-xs mt-1">La IA buscará en tu historial de soporte</p>
-                                </div>
-                            ) : (
-                                chatHistory.map((msg, idx) => (
-                                    <motion.div key={idx} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`max-w-[90%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.role === 'user' ? 'bg-gradient-to-br from-violet-600/25 to-purple-600/15 text-violet-100 rounded-tr-sm border border-violet-500/20' : msg.role === 'error' ? 'bg-red-500/10 text-red-300 border border-red-500/20 rounded-tl-sm' : 'bg-slate-800/60 text-slate-300 rounded-tl-sm border border-slate-700/40'}`}>
-                                            {msg.content}
-                                        </div>
-                                    </motion.div>
-                                ))
-                            )}
-                            {isAiThinking && (
-                                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex justify-start">
-                                    <div className="bg-slate-800/60 px-4 py-2.5 rounded-2xl rounded-tl-sm border border-slate-700/40 flex items-center gap-1.5">
-                                        {[0, 0.15, 0.3].map((delay, i) => (
-                                            <div key={i} className="w-1.5 h-1.5 bg-violet-400/50 rounded-full animate-bounce" style={{ animationDelay: `${delay}s` }} />
-                                        ))}
-                                    </div>
-                                </motion.div>
-                            )}
-                            <div ref={messagesEndRef} />
-                        </div>
-                        <div className="flex gap-2">
-                            <input type="text" placeholder="Pregunta algo sobre tus notas..." className="flex-1 bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500/30 transition-all text-slate-200 text-sm min-w-0 placeholder:text-slate-600"
-                                value={aiQuery} onChange={e => setAiQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleAiAsk()} disabled={isAiThinking} />
-                            <button onClick={handleAiAsk} disabled={!aiQuery.trim() || isAiThinking} className="p-2.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 disabled:opacity-50 text-white rounded-xl transition-all shadow-lg shadow-violet-500/20 disabled:shadow-none shrink-0">
-                                <Send size={16} />
-                            </button>
                         </div>
                     </div>
                 </div>
