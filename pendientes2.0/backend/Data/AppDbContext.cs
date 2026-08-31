@@ -14,6 +14,7 @@ public class AppDbContext : DbContext
     public DbSet<SupportNote> SupportNotes { get; set; }
     public DbSet<SupportNoteImage> SupportNoteImages { get; set; }
     public DbSet<SupportNoteAudio> SupportNoteAudios { get; set; }
+    public DbSet<SupportNoteFile> SupportNoteFiles { get; set; }
     public DbSet<AiChatMessage> AiChatHistory { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -40,6 +41,12 @@ public class AppDbContext : DbContext
             .HasMany(n => n.Audios)
             .WithOne(a => a.SupportNote)
             .HasForeignKey(a => a.SupportNoteId)
-            .OnDelete(DeleteBehavior.Cascade); 
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<SupportNote>()
+            .HasMany(n => n.Files)
+            .WithOne(f => f.SupportNote)
+            .HasForeignKey(f => f.SupportNoteId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

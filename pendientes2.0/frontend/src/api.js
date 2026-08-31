@@ -67,6 +67,18 @@ export const uploadNoteAudio = (noteId, file, durationSeconds = null) => {
 };
 export const deleteNoteAudio = (audioId) => api.delete(`/supportnotes/audios/${audioId}`);
 
+// Support Notes Files
+export const uploadNoteFile = (noteId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/supportnotes/${noteId}/files`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    });
+};
+export const getNoteFiles = (noteId) => api.get(`/supportnotes/${noteId}/files`);
+export const deleteNoteFile = (fileId) => api.delete(`/supportnotes/files/${fileId}`);
+export const getNoteFileDownloadUrl = (fileId) => `${API_URL}/supportnotes/files/${fileId}`;
+
 // AI
 export const askAi = (query) => api.post('/ai/ask', { query });
 export const getChatHistory = () => api.get('/ai/history');

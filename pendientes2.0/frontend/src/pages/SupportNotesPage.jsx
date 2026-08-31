@@ -3,7 +3,8 @@ import {
     Calendar, Plus, Save, Trash2,
     StickyNote, Clock, ImageIcon, CheckCircle2,
     Loader2, Eye, AlignLeft, AlignCenter, AlignRight, X,
-    Mic, Square, Upload, Bold, Underline, Highlighter, Type
+    Mic, Square, Upload, Bold, Underline, Highlighter, Type,
+    Paperclip, File as FileIcon, Download
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
@@ -39,7 +40,8 @@ const CustomImageResize = ImageResize.extend({
 });
 import {
     getSupportNotes, addSupportNote, updateSupportNote,
-    deleteSupportNote, uploadNoteImage
+    deleteSupportNote, askAi, getChatHistory, uploadNoteImage,
+    uploadNoteFile, getNoteFiles, deleteNoteFile, getNoteFileDownloadUrl
 } from '../api';
 import { SearchInput, Spinner, EmptyState } from '../components/ui';
 
@@ -119,6 +121,8 @@ const SupportNotesPage = () => {
     const [uploadingImage, setUploadingImage] = useState(false);
     const [lightboxImage, setLightboxImage] = useState(null);
     const [imageToolbar, setImageToolbar] = useState(null);
+    const [noteFiles, setNoteFiles] = useState([]);
+    const [uploadingFile, setUploadingFile] = useState(false);
     const [showAudioModal, setShowAudioModal] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
@@ -126,6 +130,7 @@ const SupportNotesPage = () => {
     const [audioPreviewUrl, setAudioPreviewUrl] = useState(null);
     const [uploadingAudio, setUploadingAudio] = useState(false);
     const fileInputRef = useRef(null);
+    const attachmentInputRef = useRef(null);
     const editorRef = useRef(null);
     const tagInputRef = useRef(null);
     const textColorRef = useRef(null);
@@ -211,11 +216,25 @@ const SupportNotesPage = () => {
                 const files = event.dataTransfer?.files;
                 if (!files?.length) return false;
                 for (const file of files) {
+                    event.preventDefault();
                     if (file.type.startsWith('image/')) {
-                        event.preventDefault();
                         processImageFile(file);
-                        return true;
+                    } else {
+                        const noteId = selectedNote?.id;
+                        if (!noteId) {
+                            toast.error('Guarda la nota primero para adjuntar archivos');
+                        } else {
+                            setUploadingFile(true);
+                            uploadNoteFile(noteId, file)
+                                .then(() => {
+                                    toast.success('Archivo adjunto');
+                                    fetchNoteFiles(noteId);
+                                })
+                                .catch(() => toast.error('Error al adjuntar el archivo'))
+                                .finally(() => setUploadingFile(false));
+                        }
                     }
+                    return true;
                 }
                 return false;
             },
@@ -441,6 +460,8 @@ const SupportNotesPage = () => {
         editor?.commands.setContent(note.content || '');
         setIsEditing(true);
         setMobileTab('editor');
+        setNoteFiles(note.files || []);
+        fetchNoteFiles(note.id);
     };
 
     const handleNewNote = () => {
@@ -453,6 +474,7 @@ const SupportNotesPage = () => {
         editor?.commands.setContent('');
         setIsEditing(true);
         setMobileTab('editor');
+        setNoteFiles([]);
     };
 
     const addTag = (tag) => {
@@ -516,6 +538,82 @@ const SupportNotesPage = () => {
         e.target.value = '';
     };
 
+    const fetchNoteFiles = async (noteId) => {
+        try {
+            const res = await getNoteFiles(noteId);
+            setNoteFiles(res.data);
+        } catch {
+            setNoteFiles([]);
+        }
+    };
+
+    const handleFileUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        let noteId = selectedNote?.id;
+        if (!noteId) {
+            try {
+                const content = editorRef.current?.getHTML() || '';
+                const res = await addSupportNote({
+                    title: noteTitle || 'Nota sin título',
+                    content
+                });
+                noteId = res.data.id;
+                setSelectedNote(res.data);
+                fetchNotes();
+            } catch {
+                toast.error('Guarda la nota primero para adjuntar archivos');
+                return;
+            }
+        }
+
+        try {
+            setUploadingFile(true);
+            await uploadNoteFile(noteId, file);
+            toast.success('Archivo adjunto');
+            fetchNoteFiles(noteId);
+        } catch {
+            toast.error('Error al adjuntar el archivo');
+        } finally {
+            setUploadingFile(false);
+            e.target.value = '';
+        }
+    };
+
+    const handleDeleteFile = async (fileId) => {
+        try {
+            await deleteNoteFile(fileId);
+            toast.success('Archivo eliminado');
+            if (selectedNote?.id) fetchNoteFiles(selectedNote.id);
+        } catch {
+            toast.error('Error al eliminar el archivo');
+        }
+    };
+
+    const formatFileSize = (bytes) => {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    };
+
+    const handleAiAsk = async () => {
+        if (!aiQuery.trim()) return;
+        const currentQuery = aiQuery;
+        setAiQuery('');
+        setChatHistory(prev => [...prev, { role: 'user', content: currentQuery }]);
+        setIsAiThinking(true);
+        try {
+            const response = await askAi(currentQuery);
+            setChatHistory(prev => [...prev, { role: 'ai', content: response.data.response }]);
+        } catch (error) {
+            const errorMsg = error.response?.data?.error || 'Error al conectar con la IA';
+            toast.error(errorMsg);
+            setChatHistory(prev => [...prev, { role: 'error', content: `Error: ${errorMsg}` }]);
+        } finally {
+            setIsAiThinking(false);
+        }
+    };
     const filteredNotes = notes.filter(note => {
         const matchesText = (note.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (note.content || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -702,6 +800,7 @@ const SupportNotesPage = () => {
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                                <input ref={attachmentInputRef} type="file" className="hidden" onChange={handleFileUpload} />
                                 <button
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={uploadingImage}
@@ -710,6 +809,15 @@ const SupportNotesPage = () => {
                                 >
                                     {uploadingImage ? <Spinner size="sm" /> : <ImageIcon size={14} />}
                                     {uploadingImage ? 'Subiendo...' : 'Imagen'}
+                                </button>
+                                <button
+                                    onClick={() => attachmentInputRef.current?.click()}
+                                    disabled={uploadingFile}
+                                    className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-400 hover:text-slate-200 rounded-lg transition-all text-xs font-medium border border-slate-700/50 hover:border-slate-600"
+                                    title="Adjuntar archivo"
+                                >
+                                    {uploadingFile ? <Spinner size="sm" /> : <Paperclip size={14} />}
+                                    {uploadingFile ? 'Subiendo...' : 'Adjuntar'}
                                 </button>
                                 <button
                                     onClick={() => { if (!selectedNote?.id) { toast.error('Guarda la nota primero'); } else { setShowAudioModal(true); } }}
@@ -878,6 +986,47 @@ const SupportNotesPage = () => {
                             </div>
                         )}
 
+                        {/* Archivos adjuntos */}
+                        {noteFiles.length > 0 && (
+                            <div className="mt-3 bg-slate-900/60 border border-slate-800 rounded-xl p-3">
+                                <h4 className="text-[11px] font-semibold text-slate-400 mb-2 flex items-center gap-1.5">
+                                    <Paperclip size={12} /> Archivos adjuntos
+                                </h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {noteFiles.map(file => (
+                                        <div
+                                            key={file.id}
+                                            className="group flex items-center gap-2 pl-2.5 pr-1 py-1.5 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 rounded-lg transition-all"
+                                        >
+                                            <FileIcon size={14} className="text-amber-400 shrink-0" />
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-xs text-slate-200 truncate max-w-[140px]" title={file.file_name}>
+                                                    {file.file_name}
+                                                </span>
+                                                <span className="text-[10px] text-slate-500">{formatFileSize(file.file_size)}</span>
+                                            </div>
+                                            <a
+                                                href={getNoteFileDownloadUrl(file.id)}
+                                                download={file.file_name}
+                                                className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-400/10 rounded-md transition-colors"
+                                                title="Descargar"
+                                                onClick={e => e.stopPropagation()}
+                                            >
+                                                <Download size={14} />
+                                            </a>
+                                            <button
+                                                onClick={() => handleDeleteFile(file.id)}
+                                                className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-colors"
+                                                title="Eliminar"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Consejo de etiquetas */}
                         <div className="mt-2 bg-gradient-to-r from-amber-500/5 to-orange-500/5 border border-amber-500/10 rounded-lg p-2.5">
                             <p className="text-[11px] text-amber-300/80 font-semibold mb-1 flex items-center gap-1.5">
@@ -892,7 +1041,7 @@ const SupportNotesPage = () => {
 
                         {/* Hint de atajos */}
                         <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-600">
-                            <span>💡 Puedes pegar imágenes directamente o arrastrarlas aquí</span>
+                            <span>💡 Puedes pegar imágenes, arrastrarlas o adjuntar cualquier archivo</span>
                         </div>
                     </div>
                 </div>
