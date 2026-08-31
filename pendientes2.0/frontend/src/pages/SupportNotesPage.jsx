@@ -744,7 +744,7 @@ const SupportNotesPage = () => {
 
                 {/* Notes List */}
                 <div className={`lg:col-span-4 lg:block ${mobileTab === 'notes' ? 'block' : 'hidden'}`}>
-                    <div className="space-y-2">
+                    <div className="space-y-2 max-h-[calc(100vh-22rem)] lg:max-h-[calc(100vh-20rem)] overflow-y-auto pr-1 custom-scrollbar">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center p-12 gap-4">
                                 <Spinner size="md" />
