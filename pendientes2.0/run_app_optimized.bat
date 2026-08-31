@@ -9,9 +9,13 @@ echo [1/4] Instalando dependencias del Frontend...
 cd frontend
 call npm install
 if %ERRORLEVEL% NEQ 0 (
-    echo Error instalando dependencias.
-    pause
-    exit /b %ERRORLEVEL%
+    echo Conflicto de dependencias detectado, reintentando con --legacy-peer-deps...
+    call npm install --legacy-peer-deps
+    if %ERRORLEVEL% NEQ 0 (
+        echo Error instalando dependencias.
+        pause
+        exit /b %ERRORLEVEL%
+    )
 )
 
 echo [2/4] Construyendo Frontend (React)...
