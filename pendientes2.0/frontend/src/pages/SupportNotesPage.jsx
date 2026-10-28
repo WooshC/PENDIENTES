@@ -196,6 +196,14 @@ const SupportNotesPage = () => {
             attributes: {
                 class: 'prose prose-invert max-w-none focus:outline-none min-h-[180px] text-sm text-slate-300 leading-relaxed',
             },
+            // Al copiar, un salto simple entre párrafos (por defecto ProseMirror usa línea en blanco)
+            clipboardTextSerializer: (slice) =>
+                slice.content.textBetween(
+                    0,
+                    slice.content.size,
+                    '\n',
+                    (node) => (node.type.name === 'hardBreak' ? '\n' : '')
+                ),
             handlePaste: (view, event) => {
                 const items = event.clipboardData?.items;
                 if (!items) return false;
